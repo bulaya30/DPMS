@@ -1,4 +1,33 @@
+# ====================
+# Node.js / Backend
+# ====================
 node_modules/
+# Node dependencies
+app/node_modules/
+
+# Logs
+*.log
+
+# Environment / secrets
 .env
-frontend/node_modules/
-backend/node_modules/
+app/config/serviceAccount.json
+
+# ====================
+# Frontend / React
+# ====================
+
+# Node dependencies
+dist/node_modules/
+
+# Local env files
+dist/.env
+dist/.env.local
+dist/.env.development.local
+dist/.env.test.local
+dist/.env.production.local
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
