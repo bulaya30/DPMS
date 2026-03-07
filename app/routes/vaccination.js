@@ -1,7 +1,7 @@
 // backend/routes/vaccinations.js
 const express = require("express");
 const router = express.Router();
-const { db } = require("../firebase");
+const { db } = require("../server");
 
 // GET all vaccinations
 router.get("/", async (req, res) => {

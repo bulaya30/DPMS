@@ -1,7 +1,7 @@
 // backend/routes/branches.js
 const express = require("express");
 const router = express.Router();
-const { db } = require("../firebase");
+const { db } = require("../server");
 
 // GET all branches
 router.get("/", async (req, res) => {
@@ -18,6 +18,9 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const data = req.body;
+    if (!data.name || !data.location) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
     const docRef = await db.collection("branches").add(data);
     res.json({ id: docRef.id, ...data });
   } catch (error) {

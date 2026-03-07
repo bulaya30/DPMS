@@ -12,6 +12,9 @@ router.get("/", async (req, res) => {
 // POST add feed
 router.post("/", async (req, res) => {
   const { name, quantity, branchId } = req.body;
+  if (!name || !quantity || !branchId) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
   const docRef = await db.collection("feeds").add({ name, quantity, branchId, createdAt: new Date() });
   res.status(201).json({ id: docRef.id, name, quantity, branchId });
 });

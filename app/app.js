@@ -1,19 +1,34 @@
-const express = require("express");
-const cors = require("cors");
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import webRoutes from './routes/web.js';
 
-const birdsRoutes = require("./routes/birds");
-const feedsRoutes = require("./routes/feeds");
-const eggsRoutes = require("./routes/eggs");
-const vaccinationRoutes = require("./routes/vaccination");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
+
+/* ================= MIDDLEWARE ================= */
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-app.use("/birds", birdsRoutes);
-app.use("/feeds", feedsRoutes);
-app.use("/eggs", eggsRoutes);
-app.use("/vaccination", vaccinationRoutes);
+/* ================= API ================= */
+app.use('/api', webRoutes);
 
+/* ================= STATIC ================= */
+app.use(express.static(path.join(__dirname, '../dist')));
+
+/* ================= SPA FALLBACK (EXPRESS 5 SAFE) ================= */
+app.use((req, res) => {
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({ message: 'API route not found' });
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+/* ================= SERVER ================= */
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));

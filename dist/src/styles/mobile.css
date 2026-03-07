@@ -1,0 +1,174 @@
+/* ==========================================================
+   RESPONSIVE LAYOUT
+   ========================================================== */
+
+/* =================== TABLETS =================== */
+@media (max-width: 1024px) {
+
+  /* Sidebar */
+  .sidebar {
+    width: 200px;
+  }
+
+  #main {
+    margin-left: 200px;
+  }
+
+  /* ================= DASHBOARD CONTAINER ================= */
+.dashboard-page {
+    padding: 10px;
+  }
+
+  /* Dashboard cards */
+  .dashboard-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Profile */
+  .profile-container {
+    flex-direction: column;
+  }
+
+  .profile-view,
+  .profile-edit {
+    width: 100%;
+  }
+
+  /* Forms */
+  .norrechel-grouped-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .norrechel-form-container {
+    padding: 1rem;
+  }
+
+  /* Tables */
+  .norrechel-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .stock-table-wrapper {
+    overflow-x: auto;
+  }
+}
+
+
+/* =================== MOBILE =================== */
+@media (max-width: 768px) {
+
+  /* Header */
+  .dpms-header {
+    padding: 0.5rem 1rem;
+  }
+
+  .header-title {
+    font-size: 1.1rem;
+  }
+
+  /* Sidebar collapse */
+  .sidebar {
+    transform: translateX(-100%);
+    position: fixed;
+    z-index: 1500;
+    width: 220px;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  #main {
+    margin-left: 0;
+    /* padding: 70px 12px 12px; */
+  }
+
+  /* Dashboard */
+  .dashboard-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    /* flex-direction: column; */
+    gap: 0.5rem;
+  }
+  .dashboard-filters select {
+     padding: 4px;
+  }
+
+  .filter-group {
+    min-width: 100%;
+  }
+
+  /* Cards */
+  .dashboard-card {
+    padding: 1.2rem;
+  }
+
+  .card-main .value {
+    font-size: 1.6rem;
+  }
+
+  /* Forms */
+  .norrechel-form-container {
+    margin: 1rem 0;
+  }
+
+  .crud-container {
+    flex-direction: column;
+  }
+
+  .add-form-container,
+  .update-form-container {
+    max-height: none;
+    margin: 0;
+    padding: 3px;
+  }
+
+  /* Profile */
+  .profile-view {
+    height: auto;
+  }
+
+  /* Tables */
+  .norrechel-table {
+    min-width: 600px;
+  }
+
+  /* Modals */
+  .modal-content {
+    width: 95%;
+  }
+}
+
+
+/* =================== SMALL MOBILE =================== */
+@media (max-width: 480px) {
+
+  .header-title {
+    display: none;
+  }
+
+  .dashboard-card {
+    padding: 1rem;
+  }
+
+  .card-main .value {
+    font-size: 1.4rem;
+  }
+
+  .dpms-login-btn {
+    padding: 0.6rem;
+  }
+
+  .filter-card {
+    min-width: 100%;
+  }
+
+}

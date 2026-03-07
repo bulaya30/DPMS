@@ -1,74 +1,114 @@
-import React, { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
-import TopNav from "../components/TopNav";
+import React, { useState, useEffect, useMemo } from "react";
 import DashboardCard from "../components/DashboardCard";
+import Modal from "../components/Models/Model";
 import { getBranches, getBirds, getEggs, getFeeds, getVaccinations } from "../api";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+/* ================= HELPERS ================= */
+const calculateDueDate = (vaccinationDate, dueAfterDays) => {
+  const date = new Date(vaccinationDate);
+  date.setDate(date.getDate() + Number(dueAfterDays));
+  return date;
+};
+
+const getVaccinationStatus = vaccination => {
+  if (vaccination.completed) return "Completed";
+
+  const today = new Date();
+  const dueDate = calculateDueDate(vaccination.vaccinationDate, vaccination.dueAfterDays);
+  const diffDays = (dueDate - today) / (1000 * 60 * 60 * 24);
+
+  if (diffDays < 0) return "Overdue";
+  if (diffDays <= 3) return "Due Soon";
+  return "Pending";
+};
+
 function Reports() {
   const [branches, setBranches] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState(null);
-  const [stats, setStats] = useState({
-    totalBirds: 0,
-    eggsProduced: 0,
-    feedsStock: 0,
-    vaccinationsPending: 0,
-  });
+  const [allBirds, setAllBirds] = useState([]);
+  const [allEggs, setAllEggs] = useState([]);
+  const [allFeeds, setAllFeeds] = useState([]);
+  const [allVaccinations, setAllVaccinations] = useState([]);
+  const [branchFilter, setBranchFilter] = useState("all");
 
-  const [branchData, setBranchData] = useState({
-    birds: [],
-    eggs: [],
-    feeds: [],
-    vaccinations: [],
-  });
+  /* ================= URL PARAMS ================= */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setBranchFilter(params.get("branch") || "all");
+  }, []);
 
+  const updateURL = branch => {
+    const params = new URLSearchParams();
+    if (branch !== "all") params.set("branch", branch);
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  };
+
+  /* ================= FETCH BRANCHES ================= */
   useEffect(() => {
     const fetchBranches = async () => {
       const data = await getBranches();
       setBranches(data);
-      setSelectedBranch(data[0]?.id);
     };
     fetchBranches();
   }, []);
 
+  /* ================= FETCH ALL DATA ================= */
   useEffect(() => {
-    if (!selectedBranch) return;
-
     const fetchData = async () => {
-      const birds = await getBirds();
-      const eggs = await getEggs();
-      const feeds = await getFeeds();
-      const vaccinations = await getVaccinations();
-
-      const branchBirds = birds.filter(b => b.branchId === selectedBranch);
-      const branchEggs = eggs.filter(e => e.branchId === selectedBranch);
-      const branchFeeds = feeds.filter(f => f.branchId === selectedBranch);
-      const branchVaccinations = vaccinations.filter(v => v.branchId === selectedBranch);
-
-      setStats({
-        totalBirds: branchBirds.length,
-        eggsProduced: branchEggs.reduce((sum, e) => sum + e.quantity, 0),
-        feedsStock: branchFeeds.reduce((sum, f) => sum + f.quantity, 0),
-        vaccinationsPending: branchVaccinations.filter(v => !v.completed).length,
-      });
-
-      setBranchData({
-        birds: branchBirds,
-        eggs: branchEggs,
-        feeds: branchFeeds,
-        vaccinations: branchVaccinations,
-      });
+      const [birds, eggs, feeds, vaccinations] = await Promise.all([
+        getBirds(),
+        getEggs(),
+        getFeeds(),
+        getVaccinations(),
+      ]);
+      setAllBirds(birds);
+      setAllEggs(eggs);
+      setAllFeeds(feeds);
+      setAllVaccinations(vaccinations);
     };
-
     fetchData();
-  }, [selectedBranch]);
+  }, []);
 
-  // Export detailed Excel
+  const getBranchName = name => branches.find(b => b.name === name)?.name || "Unknown";
+
+  /* ================= FILTERED DATA ================= */
+  const filteredBirds = useMemo(
+    () => branchFilter === "all" ? allBirds : allBirds.filter(b => b.branch === branchFilter),
+    [allBirds, branchFilter]
+  );
+  const filteredEggs = useMemo(
+    () => branchFilter === "all" ? allEggs : allEggs.filter(e => e.branch === branchFilter),
+    [allEggs, branchFilter]
+  );
+  const filteredFeeds = useMemo(
+    () => branchFilter === "all" ? allFeeds : allFeeds.filter(f => f.branch === branchFilter),
+    [allFeeds, branchFilter]
+  );
+  const filteredVaccinations = useMemo(
+    () => branchFilter === "all" ? allVaccinations : allVaccinations.filter(v => v.branch === branchFilter),
+    [allVaccinations, branchFilter]
+  );
+
+  /* ================= STATS ================= */
+  const stats = useMemo(() => ({
+    totalBirds: filteredBirds.reduce((sum, b) => sum + (b.quantity || 0), 0),
+    eggsProduced: filteredEggs.reduce((sum, e) => sum + e.quantity, 0),
+    feedsStock: filteredFeeds.reduce((sum, f) => sum + f.quantity, 0),
+    vaccinationsPending: filteredVaccinations.filter(v => !v.completed).length,
+  }), [filteredBirds, filteredEggs, filteredFeeds, filteredVaccinations]);
+
+  /* ================= FILTER HANDLER ================= */
+  const handleBranchChange = e => {
+    const branch = e.target.value;
+    setBranchFilter(branch);
+    updateURL(branch);
+  };
+
+  /* ================= EXPORT TO EXCEL ================= */
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
-
-    // 1️⃣ Summary Sheet
     const summaryData = [
       ["Metric", "Value"],
       ["Total Birds", stats.totalBirds],
@@ -76,96 +116,103 @@ function Reports() {
       ["Feed Stock", stats.feedsStock],
       ["Vaccinations Pending", stats.vaccinationsPending],
     ];
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryData), "Summary");
 
-    // 2️⃣ Birds Sheet
-    if (branchData.birds.length > 0) {
-      const birdsSheet = XLSX.utils.json_to_sheet(branchData.birds.map(b => ({
-        ID: b.id,
-        Name: b.name,
-        Category: b.category,
-        Age: b.age,
-        BranchID: b.branchId,
-      })));
-      XLSX.utils.book_append_sheet(workbook, birdsSheet, "Birds");
-    }
+    const sheets = [
+      { data: filteredBirds, name: "Birds" },
+      { data: filteredEggs, name: "Eggs" },
+      { data: filteredFeeds, name: "Feeds" },
+      { data: filteredVaccinations, name: "Vaccinations" },
+    ];
 
-    // 3️⃣ Eggs Sheet
-    if (branchData.eggs.length > 0) {
-      const eggsSheet = XLSX.utils.json_to_sheet(branchData.eggs.map(e => ({
-        ID: e.id,
-        Date: e.date,
-        Quantity: e.quantity,
-        BranchID: e.branchId,
-      })));
-      XLSX.utils.book_append_sheet(workbook, eggsSheet, "Eggs");
-    }
+    sheets.forEach(sheet => {
+      if (sheet.data.length > 0) {
+        const formatted = sheet.data.map(item => {
+          switch (sheet.name) {
+            case "Birds": return { Type: item.name, Quantity: item.quantity, Branch: getBranchName(item.branch) };
+            case "Eggs": return { Date: item.date, Quantity: item.quantity, Branch: getBranchName(item.branch) };
+            case "Feeds": return { Name: item.name, Quantity: item.quantity, Branch: getBranchName(item.branch) };
+            case "Vaccinations": 
+              return { 
+                BirdType: item.birdType, 
+                Vaccine: item.vaccine, 
+                DueDate: calculateDueDate(item.vaccinationDate, item.dueAfterDays).toLocaleDateString(),
+                Status: getVaccinationStatus(item),
+                Completed: item.completed ? "Yes" : "No", 
+                Branch: getBranchName(item.branch) 
+              };
+            default: return item;
+          }
+        });
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(formatted), sheet.name);
+      }
+    });
 
-    // 4️⃣ Feeds Sheet
-    if (branchData.feeds.length > 0) {
-      const feedsSheet = XLSX.utils.json_to_sheet(branchData.feeds.map(f => ({
-        ID: f.id,
-        Name: f.name,
-        Quantity: f.quantity,
-        BranchID: f.branchId,
-      })));
-      XLSX.utils.book_append_sheet(workbook, feedsSheet, "Feeds");
-    }
-
-    // 5️⃣ Vaccinations Sheet
-    if (branchData.vaccinations.length > 0) {
-      const vaccinationSheet = XLSX.utils.json_to_sheet(branchData.vaccinations.map(v => ({
-        ID: v.id,
-        BirdType: v.birdType,
-        Date: v.date,
-        Completed: v.completed ? "Yes" : "No",
-        BranchID: v.branchId,
-      })));
-      XLSX.utils.book_append_sheet(workbook, vaccinationSheet, "Vaccinations");
-    }
-
-    // Save Excel
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
-    saveAs(blob, `DPMS_Report_Branch_${selectedBranch}.xlsx`);
+    saveAs(new Blob([excelBuffer], { type: "application/octet-stream" }), `DPMS_Report_${branchFilter}.xlsx`);
   };
 
+  /* ================= TABLE RENDER ================= */
+  const renderTable = (data, columns, title, type) => (
+    <div className="norrechel-table-wrapper">
+      <h3>{title}</h3>
+      <table className="norrechel-table">
+        <thead>
+          <tr>
+            {columns.map(col => <th key={col}>{col}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} style={{ textAlign: "center" }}>No records</td>
+            </tr>
+          ) : (
+            data.map(row => (
+              <tr key={row.id}>
+                {columns.map(col => {
+                  switch(col){
+                    case "Branch": return <td key={col}>{getBranchName(row.branch)}</td>;
+                    case "Type": return <td key={col}>{row.type || row.type}</td>;
+                    case "DueDate": return <td key={col}>{calculateDueDate(row.vaccinationDate, row.dueAfterDays).toLocaleDateString()}</td>;
+                    case "Status": return <td key={col}>{getVaccinationStatus(row)}</td>;
+                    default: return <td key={col}>{row[col.toLowerCase()] ?? row[col]}</td>;
+                  }
+                })}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
-    <div className="dashboard">
-      <Sidebar />
-      <div className="main-content">
-        <TopNav
-          branches={branches}
-          selectedBranch={selectedBranch}
-          onBranchChange={setSelectedBranch}
-        />
-
-        <h2>Branch Reports</h2>
-
-        <div style={{ marginBottom: "20px" }}>
-          <button
-            onClick={exportToExcel}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              backgroundColor: "#00bfff",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Export to Excel
-          </button>
+    <div className="page-content">
+      {/* ===== FILTER & EXPORT ===== */}
+      <div className="filters">
+        <div className="branch-filter">
+          <select className="branch-selector" value={branchFilter} onChange={handleBranchChange}>
+            <option value="all">All Branches</option>
+            {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+          </select>
         </div>
-
-        <div className="cards">
-          <DashboardCard title="Total Birds" value={stats.totalBirds} />
-          <DashboardCard title="Eggs Produced" value={stats.eggsProduced} />
-          <DashboardCard title="Feed Stock" value={stats.feedsStock} />
-          <DashboardCard title="Vaccinations Pending" value={stats.vaccinationsPending} />
-        </div>
+        <button className="norrechel-btn" onClick={exportToExcel}>Export to Excel</button>
       </div>
+
+      {/* ===== DASHBOARD CARDS ===== */}
+      <div className="norrechel-cards">
+        <DashboardCard title="Total Birds" value={stats.totalBirds} />
+        <DashboardCard title="Eggs Produced" value={stats.eggsProduced} />
+        <DashboardCard title="Feed Stock" value={stats.feedsStock} />
+        <DashboardCard title="Vaccinations Pending" value={stats.vaccinationsPending} />
+      </div>
+
+      {/* ===== TABLES ===== */}
+      {renderTable(filteredBirds, ["Type", "Quantity", "Branch"], "Birds", "birds")}
+      {renderTable(filteredEggs, ["Date", "Quantity", "Branch"], "Eggs", "eggs")}
+      {renderTable(filteredFeeds, ["Name", "Quantity", "Branch"], "Feeds", "feeds")}
+      {renderTable(filteredVaccinations, ["BirdType", "Vaccine", "DueDate", "Status", "Completed", "Branch"], "Vaccinations", "vaccinations")}
     </div>
   );
 }

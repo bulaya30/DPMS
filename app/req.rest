@@ -1,0 +1,46 @@
+# POST http://localhost:5000/branches
+# Content-Type: application/json
+
+# {
+#    "name": "New Branch",
+#    "location": "New York"
+# }
+
+
+GET http://localhost:5000/api/env
+Content-Type: application/json
+
+
+
+# POST http://localhost:5000/process
+# Content-Type: application/json
+# {
+#     "collection": "birds",
+#     "action": "add",
+#     "data": {
+#         "branch": "New Branch",
+#         "type": "Layers",
+#         "age": "3",
+#         "quantity": "300",
+#         "price": "3000",
+#     }
+# }   
+
+# POST http://localhost:5000/process
+# Content-Type: application/json
+# {
+#     "collection": "templates",
+#     "action": "add",
+#     "data": {
+#         "birdType": "Broilers",
+#         "name": "Standard Broiler Vaccination",
+#         "active": true,
+#         "schedule": [
+#             { "ageInDays": 7, "vaccine": "newCastle" },
+#             { "ageInDays": 14, "vaccine": "Gumboro" },
+#             { "ageInDays": 21, "vaccine": "Gumboro Booster" },
+#             { "ageInDays": 28, "vaccine": "newCastle Booster" }
+#         ]
+
+#     }
+# }   

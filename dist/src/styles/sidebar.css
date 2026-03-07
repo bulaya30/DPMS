@@ -34,23 +34,23 @@
 .sidebar ul li a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  /* gap: 12px; */
+  /* padding: 12px; */
   border-radius: 8px;
   /* color: #fff; */
   text-decoration: none;
   /* transition: background 0.3s; */
 }
 
-.sidebar ul li a:hover,
+/* .sidebar ul li a:hover,
 .sidebar ul li a.active {
   background-color: #35355a;
-}
+} */
 
-.sidebar .icon {
+/* .sidebar .icon {
   font-size: 18px;
   min-width: 24px;
-}
+} */
 
 /* Hide text when collapsed */
 .sidebar.collapsed .text {
