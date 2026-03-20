@@ -6,37 +6,40 @@ const collectionName = "vaccine_schedules";
 async function resolveBirdPriceCore({ typeId, age = 0 }) {
   if (!typeId) throw new Error("Item type required");
 
-  const rules = await db.get(collectionName, "typeId", typeId);
+  const rules = await db.get('pricing_rules', "typeId", typeId);
   const numericAge = Number(age);
-
+  
   if (!rules?.length || isNaN(numericAge)) {
-    return { price: 0, currency: "UGX" };
+      return { price: 0, currency: "UGX" };
   }
-
+  
   const sortedRules = rules
-    .map(r => ({
-      ...r,
-      minAge: Number(r.minAge ?? 0),
-      maxAge: Number(r.maxAge ?? Infinity),
-      price: Number(r.price ?? 0),
-    }))
+    .flatMap(r => 
+      r.ranges.map(range => ({
+        ...range,
+        minAge: Number(range.minAge ?? 0),
+        maxAge: Number(range.maxAge ?? Infinity),
+        price: Number(range.price ?? 0),
+        currency: range.currency || "UGX",
+      }))
+    )
     .sort((a, b) => a.minAge - b.minAge);
 
   const matched = sortedRules.find(r =>
     numericAge >= r.minAge && numericAge <= r.maxAge
   );
-
+  
   if (matched) {
     return {
       price: matched.price,
       currency: matched.currency || "UGX",
     };
   }
-
+  
   // If age exceeds max bracket → use last rule
   const lastRule = sortedRules.at(-1);
 
-  if (numericAge > lastRule.maxAge) {
+  if (lastRule && numericAge > lastRule.maxAge) {
     return {
       price: lastRule.price,
       currency: lastRule.currency || "UGX",

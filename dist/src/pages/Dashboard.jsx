@@ -123,6 +123,7 @@ export default function Dashboard() {
     return map;
   }, [filteredInventories, types]);
 
+
   const totalMain = useMemo(() => Object.values(typeStats).reduce((a, b) => a + b, 0), [typeStats]);
 
   /* ================= VACCINATION ALERTS ================= */
@@ -196,23 +197,25 @@ export default function Dashboard() {
 
       {/* KPI CARDS */}
       <div className="dashboard-kpis">
-        {/* Total KPI */}
 
         {/* KPI per type */}
-        {Object.entries(typeStats).map(([typeName, qty]) => (
+        {activeTab !== 'feed' && Object.entries(typeStats).map(([typeName, qty]) => (
           <motion.div key={typeName} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <KPIStatCard
               title={typeName}
               value={qty}
               icon={activeTab === "bird" ? <Bird /> : activeTab === "egg" ? <Egg /> : <Wheat />}
-            />
+              item={typeName}
+              />
           </motion.div>
         ))}
+        {/* Total KPI */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <KPIStatCard
             title={`Total ${activeTab === "bird" ? "Birds" : activeTab === "egg" ? "Eggs" : "Feed"}`}
             value={totalMain}
             icon={activeTab === "bird" ? <Bird /> : activeTab === "egg" ? <Egg /> : <Wheat />}
+            item="total"
           />
         </motion.div>
 

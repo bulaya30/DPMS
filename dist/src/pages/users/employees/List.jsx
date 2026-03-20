@@ -95,10 +95,12 @@ const Employees = () => {
             date: normalizeDate(b.date) 
         }));
     }, [employees, branchFilter, localMode, value]);
+    
+    
     /* ================= TABLE ROWS ================= */
-        const tableRows = useMemo(
-            () =>
-              filteredEmployees.map(employee => ({
+    const tableRows = useMemo(
+        () =>
+            filteredEmployees.map(employee => ({
                 id: employee.id,
                 firstName: employee.firstName,
                 lastName: employee.lastName,

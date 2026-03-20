@@ -214,6 +214,40 @@ function Update({ employees = [], brancheData = [], onSuccess }) {
 
       <form onSubmit={handleSubmit} autoComplete="off">
         <h2>Update Employee</h2>
+        {/* Branch */}
+        <div className="inputs">
+          <div className="norrechel-grouped-inputs">
+            <div>
+              <label>Branch</label>
+              <select name="branch" value={formData.branch} onChange={handleChange}>
+                <option value=""></option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.district})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Employee</label>
+              <select 
+                name="employee" 
+                value={formData.employee} 
+                onChange={handleChange}
+                disabled={!formData.branch}
+              >
+                <option value=""></option>
+                {employees
+                  .filter(e => e.branchId === formData.branch)
+                  .map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.firstName} {e.lastName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        </div>
         <div className="inputs">
             <div className="norrechel-grouped-inputs">
                 <div>
@@ -273,40 +307,7 @@ function Update({ employees = [], brancheData = [], onSuccess }) {
             </div>
           </div>
         </div>
-        {/* Branch */}
-        <div className="inputs">
-          <div className="norrechel-grouped-inputs">
-            <div>
-              <label>Branch</label>
-              <select name="branch" value={formData.branch} onChange={handleChange}>
-                <option value=""></option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.district})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label>Employee</label>
-              <select 
-                name="employee" 
-                value={formData.employee} 
-                onChange={handleChange}
-                disabled={!formData.branch}
-              >
-                <option value=""></option>
-                {employees
-                  .filter(e => e.branchId === formData.branch)
-                  .map(e => (
-                    <option key={e.id} value={e.id}>
-                      {e.firstName} {e.lastName}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        
 
         <div className="inputs">
           <div className="norrechel-grouped-inputs">

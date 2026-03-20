@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, useMotionValue, animate } from "framer-motion";
 
-export default function KPIStatCard({ title, value, icon, danger }) {
+export default function KPIStatCard({ title, value, icon, danger, item=null }) {
   const motionValue = useMotionValue(0);
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -17,7 +17,7 @@ export default function KPIStatCard({ title, value, icon, danger }) {
 
   return (
     <motion.div
-      className={`kpi-card ${danger ? "danger" : ""}`}
+      className={`kpi-card ${item?? ''} ${danger ? "danger" : ""}`}
       whileHover={{ y: -4, scale: 1.02 }}
       transition={{ type: "spring", stiffness: 250, damping: 18 }}
     >

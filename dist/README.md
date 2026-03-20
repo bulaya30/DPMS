@@ -1,6 +1,7 @@
 # ISMP – Integrated Stock Management Platform
 
 ISMP is a poultry farm management system designed to help farms manage birds, eggs, feeds, vaccinations, inventory, and sales across multiple branches.
+
 The system provides real-time stock tracking, vaccination scheduling, and daily inventory reporting to improve farm operations and decision-making.
 
 ---
@@ -19,13 +20,13 @@ The system provides real-time stock tracking, vaccination scheduling, and daily 
 
 ## Tech Stack
 
-**Frontend**
+### Frontend
 
 * React
 * Vite
 * CSS
 
-**Backend**
+### Backend
 
 * Firebase
 * Firestore Database
@@ -44,7 +45,7 @@ git clone https://github.com/bulaya30/DPMS.git
 Navigate to the project folder
 
 ```
-cd dpms
+cd DPMS
 ```
 
 Install dependencies
@@ -63,7 +64,7 @@ npm run dev
 
 ## Author
 
-**Norbert Bulaya**
+Norbert Bulaya
 
 ---
 

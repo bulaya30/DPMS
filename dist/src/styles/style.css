@@ -589,10 +589,26 @@ body.dark .profile-dropdown {
   align-items: center;
   gap: 16px;
   box-shadow: var(--soft-shadow);
-  border-left: #0065b8 solid 3px;
+  /* border-left: #0065b8 solid 3px; */
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
-
+.kpi-card.Layers {
+  background: linear-gradient(45deg, #0065b8c5, #294fa8);
+  color: #ffffff;
+}
+.kpi-card.Local {
+  background: linear-gradient(45deg, #ecbe03b7, #ebbc03);
+  color: #ffffff;
+  border: none;
+}
+.kpi-card.Broilers {
+  background: linear-gradient(45deg, rgba(255, 0, 0, 0.637), rgb(216, 1, 1));
+  color: #ffffff;
+}
+.kpi-card.total {
+  background: linear-gradient(45deg, rgba(0, 128, 0, 0.664), green);
+  color: #ffffff;
+}
 .kpi-card.danger {
   background: rgba(244, 67, 54, 0.12);
 }

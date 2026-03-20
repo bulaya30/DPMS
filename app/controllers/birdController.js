@@ -30,54 +30,45 @@ async function resolveBirdPrice(user, { typeId, age = 0 }) {
 
   const rules = await PriceController.getPrices(user, "typeId", typeId);
   const numericAge = Number(age);
-
+  
   if (!rules?.length || isNaN(numericAge)) {
-    return { price: 0, currency: "UGX", ruleId: null };
+      return { price: 0, currency: "UGX" };
   }
-
-  // Find bird rule
-  const rule = rules.find(r => r.item === "bird");
-
-  if (!rule?.ranges?.length) {
-    return { price: 0, currency: "UGX", ruleId: null };
-  }
-
-  // Normalize & sort ranges by minAge
-  const sortedRanges = rule.ranges
-    .map(r => ({
-      minAge: Number(r.minAge ?? 0),
-      maxAge: Number(r.maxAge ?? Infinity),
-      price: Number(r.price ?? 0),
-      currency: r.currency || "UGX",
-    }))
+  
+  const sortedRules = rules
+    .flatMap(r => 
+      r.ranges.map(range => ({
+        ...range,
+        minAge: Number(range.minAge ?? 0),
+        maxAge: Number(range.maxAge ?? Infinity),
+        price: Number(range.price ?? 0),
+        currency: range.currency || "UGX",
+      }))
+    )
     .sort((a, b) => a.minAge - b.minAge);
 
-  // 1️⃣ Try normal match
-  const matchedRange = sortedRanges.find(
-    r => numericAge >= r.minAge && numericAge <= r.maxAge
+  const matched = sortedRules.find(r =>
+    numericAge >= r.minAge && numericAge <= r.maxAge
   );
-
-  if (matchedRange) {
+  
+  if (matched) {
     return {
-      price: matchedRange.price,
-      currency: matchedRange.currency,
-      ruleId: rule.id,
+      price: matched.price,
+      currency: matched.currency || "UGX",
+    };
+  }
+  
+  // If age exceeds max bracket → use last rule
+  const lastRule = sortedRules.at(-1);
+
+  if (lastRule && numericAge > lastRule.maxAge) {
+    return {
+      price: lastRule.price,
+      currency: lastRule.currency || "UGX",
     };
   }
 
-  // 2️⃣ If age exceeds max bracket → return last range price
-  const lastRange = sortedRanges.at(-1);
-
-  if (numericAge > lastRange.maxAge) {
-    return {
-      price: lastRange.price,
-      currency: lastRange.currency,
-      ruleId: rule.id,
-    };
-  }
-
-  // 3️⃣ Fallback
-  return { price: 0, currency: "UGX", ruleId: rule.id };
+  return { price: 0, currency: "UGX" };
 }
 
 async function validateBranchAndType(branchId, typeId) {
@@ -164,7 +155,6 @@ export async function fetchBirds(user, field = "", value = "", page = 1) {
 
     return birdsWithVaccinations;
   } catch (err) {
-    console.error("Error fetching birds:", err);
     throw err;
   }
 }
@@ -188,7 +178,6 @@ async function getBirds(user, field = null, value = null) {
       b => b.branchId === user.branchId && b.active === true
     );
   } catch (error) {
-    console.error(error);
     throw error; // preserve original error
   }
 }

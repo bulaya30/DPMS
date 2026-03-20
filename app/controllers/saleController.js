@@ -200,8 +200,7 @@ async function fetchSales(field = null, value = null) {
 
     return field === "id" ? result[0] : result;
   } catch (error) {
-    console.error("Error fetching sales:", error);
-    throw new Error(error);
+    throw new Error(`Error fetching sales: ${error}`);
   }
 }
 
