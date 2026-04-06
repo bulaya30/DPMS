@@ -193,9 +193,6 @@ export default function Dashboard() {
   );
 }, [birds, branchFilter, activeTab]);
 
-    // console.log(birds[0].vaccinationTimeline);
-    // console.log(vaccinationAlerts);
-
 
   const totalVaccinationAlerts = vaccinationAlerts.length;
 
@@ -229,7 +226,7 @@ export default function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-hero">
         <h1>System Overview</h1>
-        <p>Digital Poultry Management System</p>
+        <p>ISMP</p>
       </div>
 
       {/* FILTERS */}
