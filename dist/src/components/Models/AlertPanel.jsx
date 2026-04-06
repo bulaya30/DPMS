@@ -1,4 +1,10 @@
 import React, { useState } from "react";
+import Inventories from "../../pages/invetories/inventory";
+
+const formatDate = (date) => {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-GB"); // or "en-US"
+};
 
 export default function AlertsPanel({ data }) {
   const { inventory = [], vaccination = [] } = data || {};
@@ -7,14 +13,14 @@ export default function AlertsPanel({ data }) {
 
   const inventoryAlerts = inventory.filter(d => d.alert);
   const vaccinationAlerts = vaccination;
-
   const renderAlerts = (alerts) => {
     if (!alerts || alerts.length === 0) {
       return <p className="muted">No critical alerts 🎉</p>;
     }
     return alerts.slice(0, 5).map((a, i) => (
-      <div key={i} className="alert-row">
-        <span>{a.birdType} birds missed {a.vaccine } vaccination on {a.date}</span>
+      <div key={a.birdId + a.vaccine + i} className="alert-row">
+        <p>{a.birdType} of {a.age} days missed "{a.vaccine }" vaccination on {formatDate(a.dueDate)}</p>
+        <p>{a.vaccine} age is {a.supposedAge} days</p>
       </div>
     ));
   };

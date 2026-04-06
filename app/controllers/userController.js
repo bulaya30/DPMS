@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 /* ===================== CONSTANTS ===================== */
 const collectionName = "users";
+
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const JWT_EXPIRES = process.env.JWT_EXPIRES || "1d";
 
@@ -11,6 +12,7 @@ async function getUser(user, field = null, value = null) {
   if (user.role === 'admin') return await fetchUsers(field, value);
   return await fetchUsers('id', user.uid)
 }
+
 async function getEmployees(user) {
 
   if (user.role !== 'admin' && user.role !== 'manager') {
@@ -26,21 +28,23 @@ async function getEmployees(user) {
 
 
 /* ===================== GET USERS ===================== */
-const fetchUsers = async (field = null, value = null) => {
+export const fetchUsers = async (field = null, value = null) => {
   
   const data = await db.get(collectionName, field, value);
-
   /* ================= SINGLE USER ================= */
   if (!Array.isArray(data)) {
     let branchName = "Unknown branch";
+    let branchId = "";
     const branch = await db.get("branches", "id", data.branchId);
     if (branch) {
-      branchName = `${branch.name} (${branch.district})`;
+      branchName = `${branch.name}`;
+      branchId = branch.id
     }
 
     return {
       ...data,
       branchName,
+      branchId,
     };
   }
 

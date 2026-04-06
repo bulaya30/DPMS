@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { getBranches, processData } from "../../../api";
+import { useProcessUser } from "../../../hooks/useUsers";
 import { checkPhone, checkName, checkMail, checkPassword } from "../../../validations/validate";
 import { FaEdit, FaSave } from "react-icons/fa";
 
-function Update({ employees = [], brancheData = [], onSuccess }) {
-  const [branches, setBranches] = useState([]);
+function Update({ employeeData = [], brancheData = [] }) {
+  const { mutate, isPending: isSaving } = useProcessUser();
+  const branches = brancheData
+  const employees = employeeData
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false)
   
 
   const [formData, setFormData] = useState({
@@ -33,13 +34,7 @@ function Update({ employees = [], brancheData = [], onSuccess }) {
 
   const [hasEmployee, setHasEmployee] = useState(false);
 
-  /* ================= FETCH BRANCHES ================= */
-  useEffect(() => {
-    const fetchData = async () => {
-      setBranches(brancheData);
-    };
-    fetchData();
-  }, [brancheData]);
+ 
   /* ================= LOAD EMPLOYEE ================= */
   useEffect(() => {
     if (!formData.employee) {
@@ -168,36 +163,45 @@ function Update({ employees = [], brancheData = [], onSuccess }) {
   const handleSubmit = async e => {
     e.preventDefault();
     if (!canEdit || !hasChanged || isSaving) return;
-
-    try {
-      setIsSaving(true);
-      const employee = employees.find(
-        e => e.id === formData.employee
-      );
-      if (!employee) return;
-
-      const res = await processData({
-        collection: "users",
-        action: "update",
-        id: employee.id,
-        data: {
-            branchId: employee.branchId,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            contact: formData.contact,
-            email: formData.email,
-            role: formData.role,
-        },
-      });
-      console.log(res)
-      setSuccess("Information updated successfully!");
-    } catch (err) {
-      console.log(err)
-      setServerError(err.message);
-    } finally {
-      setTimeout(() => setSuccess(""), setShake(false), setErrors({}), setServerError(''), 5000);
-      setIsSaving(false)
+    const employee = employees.find(
+      e => e.id === formData.employee
+    );
+    if (!employee) return;
+    const payload = {
+      collection: "users",
+      action: "update",
+      id: employee.id,
+      data: {
+        branchId: employee.branchId,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        contact: formData.contact,
+        email: formData.email,
+        role: formData.role,
+      },
     }
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Information updated successfully!");
+        setFormData({
+          branchId: "",
+          firstName: "",
+          lastName: "",
+          contact: "",
+          email: "",
+          role: "",
+        });
+      },
+      onError: err => {
+        setServerError(err.message);
+      },
+      onSettled: () => {
+        setTimeout(() => setSuccess(""), setShake(false), setErrors({}), setServerError(''), 5000);
+      }
+    })
+
+
+    
   };
 
   /* ================= RENDER ================= */

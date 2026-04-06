@@ -22,18 +22,17 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeContext } from "../components/ThemeContext";
+import useAuthStore from "../store/authStore";
 
-const user = JSON.parse(localStorage.getItem("user"));
-const defaultRole = user?.role;
 
 function Sidebar({
-  userRole = defaultRole,
-  lowStockCount = 0,
   itemTypes = [],
   birdBatches = [],
   vaccinationTemplates = [],
   vaccinationHistory = [],
 }) {
+  const user = useAuthStore((state) => state.user);
+  const role = user?.role || "";
   const { darkMode } = useContext(ThemeContext);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -58,7 +57,7 @@ function Sidebar({
   /* ================= ROLE ACCESS ================= */
   const canAccess = (roles) => {
     if (!roles || roles.length === 0) return true;
-    return roles.includes(userRole);
+    return roles.includes(role);
   };
 
   /* ================= ACTIVE TAB ================= */
@@ -67,45 +66,7 @@ function Sidebar({
     [searchParams]
   );
 
-  /* ================= LOW ITEM TYPES ================= */
-  const lowItemTypeCount = useMemo(
-    () => itemTypes.filter((i) => i.quantity <= i.reorderLevel).length,
-    [itemTypes]
-  );
 
-  /* ================= VACCINATION BADGE ================= */
-  const vaccinationBadge = useMemo(() => {
-    if (!birdBatches.length || !vaccinationTemplates.length) return null;
-
-    let overdue = 0;
-    let upcoming = 0;
-
-    birdBatches.forEach((batch) => {
-      const template = vaccinationTemplates.find(
-        (t) => t.birdType === batch.birdType
-      );
-
-      if (!template) return;
-
-      const next = getNextVaccination?.(
-        batch,
-        template,
-        vaccinationHistory
-      );
-
-      if (!next) return;
-
-      const today = new Date();
-      const nextDate = new Date(next.date);
-
-      if (nextDate < today) overdue++;
-      else if ((nextDate - today) / 86400000 <= 3) upcoming++;
-    });
-
-    if (overdue > 0) return { count: overdue, color: "red" };
-    if (upcoming > 0) return { count: upcoming, color: "orange" };
-    return null;
-  }, [birdBatches, vaccinationTemplates, vaccinationHistory]);
 
   /* ================= MENU GROUPS ================= */
   const menuGroups = useMemo(
@@ -114,8 +75,8 @@ function Sidebar({
         title: "Main",
         key: "main",
         items: [
-          { key: "dashboard", label: "Dashboard", icon: <Home />, roles: ["admin", "manager"] },
-          { key: "sales", label: "Sales", icon: <ShoppingCart /> },
+          { key: "dashboard", label: "Dashboard", roles: ["admin", "manager"] },
+          { key: "sales", label: "Sales", },
         ],
       },
 
@@ -123,28 +84,34 @@ function Sidebar({
         title: "Production",
         key: "production",
         items: [
-          { key: "branches", label: "Branches", icon: <Building />, roles: ["admin"] },
+          { key: "branches", label: "Branches",  roles: ["admin"] },
           {
             key: "item-types",
             label: "Item Types",
-            icon: <Archive />,
-            badge: lowItemTypeCount,
-            badgeColor: "gray",
+            // icon: <Archive />,
             roles: ["admin"],
           },
-          { key: "birds", label: "Birds", icon: <Leaf /> },
-          { key: "eggs", label: "Eggs", icon: <Circle /> },
-          { key: "feeds", label: "Feeds", icon: <Leaf /> },
-          { key: "vaccination", label: "Vaccination", icon: <Syringe /> },
+          { key: "birds", label: "Birds", 
+            // icon: <Leaf /> 
+          },
+          { key: "eggs", label: "Eggs", 
+            // icon: <Circle /> 
+          },
+          { key: "feeds", label: "Feeds", 
+            // icon: <Leaf /> 
+          },
+          { key: "vaccination", label: "Vaccination", 
+            // icon: <Syringe /> 
+          },
           {
             key: "vaccination-schedule",
             label: "Vaccination Schedule",
-            icon: <Calendar />,
+            // icon: <Calendar />,
             roles: ["admin"],
-            badge: vaccinationBadge?.count,
-            badgeColor: vaccinationBadge?.color,
           },
-          { key: "losses", label: "Losses", icon: <AlertTriangle />, roles: ["admin", "manager"] },
+          { key: "losses", label: "Losses", 
+            // icon: <AlertTriangle />, 
+            roles: ["admin", "manager"] },
         ],
       },
 
@@ -153,9 +120,13 @@ function Sidebar({
         key: "reports",
         roles: ["admin", "manager"],
         items: [
-          { key: "stock", label: "Stock", icon: <Package />, badge: lowStockCount, badgeColor: "gray" },
-          { key: "sale-report", label: "Sale Report", icon: <BarChart2 /> },
-          { key: "inventories", label: "Inventory", icon: <Archive />, badge: lowStockCount, badgeColor: "gray" },
+          { key: "stock", label: "Stock", },
+          { key: "sale-report", label: "Sale Report", 
+            // icon: <BarChart2 /> 
+          },
+          { key: "inventories", label: "Inventory", 
+            // icon: <Archive />
+           },
         ],
       },
 
@@ -163,8 +134,8 @@ function Sidebar({
         title: "Accounts",
         key: "user",
         items: [
-          { key: "employees", label: "Employees", icon: <Users />, roles: ["admin", "manager"] },
-          { key: "profile", label: "Profile", icon: <User /> },
+          { key: "employees", label: "Employees",  roles: ["admin", "manager"] },
+          { key: "profile", label: "Profile" },
         ],
       },
 
@@ -172,10 +143,10 @@ function Sidebar({
         title: "Settings",
         key: "settings",
         roles: ["admin"],
-        items: [{ key: "settings", label: "Settings", icon: <Sliders /> }],
+        items: [{ key: "settings", label: "Settings" }],
       },
     ],
-    [lowStockCount, lowItemTypeCount, vaccinationBadge]
+    []
   );
 
   /* ================= AUTO OPEN ================= */

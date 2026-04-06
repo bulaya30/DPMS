@@ -1,9 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
+import vaccinationReminder from './controllers/vaccinationReminder.js';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import webRoutes from './routes/web.js';
+
+setInterval(vaccinationReminder,  20 * 60 * 1000); // every 20 Minutes
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

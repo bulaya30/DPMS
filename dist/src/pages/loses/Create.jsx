@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { checkNumber } from "../../validations/validate";
-import { processData } from "../../api";
+import { useProcessLoss } from "../../hooks/useLoss";
 import { FaSave } from "react-icons/fa";
 
 const LOSS_TAB_CONFIG = {
@@ -12,6 +12,7 @@ const LOSS_TAB_CONFIG = {
 
 
 function AddLoss({ activeItem, birdData, eggData, feedData, brancheData, typeData, onSuccess }) {
+  const { mutate, isPending: isSaving } = useProcessLoss();
   const [branches, setBranches] = useState([]);
   const [types, setTypes] = useState([]);
   const [birds, setBirds] = useState([]);
@@ -43,7 +44,6 @@ function AddLoss({ activeItem, birdData, eggData, feedData, brancheData, typeDat
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ================= INIT ================= */
   useEffect(() => {
@@ -118,7 +118,7 @@ function AddLoss({ activeItem, birdData, eggData, feedData, brancheData, typeDat
           Number(b.age) === Number(formData.age)
       );
   
-    } else if (activeItem === "egg" || activeItem === "spoiled-egg") {
+    } else if (activeItem === "egg") {
       if (!formData.typeId) return;
   
       item = eggs.find(
@@ -192,47 +192,47 @@ function AddLoss({ activeItem, birdData, eggData, feedData, brancheData, typeDat
       setShake(true);
       return;
     }
-    // console.log(selectedItem);
-    setIsSaving(true);
+    
+    const payload = {
+      action: "add",
+      collection: "losses",
+      data: {
+        branchId: formData.branchId,
+        feed: tabConfig.showName ? formData.feed : null,
+        typeId: tabConfig.showType ? formData.typeId : null,
+        item: tabConfig.item,
+        itemId: selectedItem.id ?? null,
+        quantity: Number(formData.quantity),
+        age: tabConfig.showAge ? Number(formData.age) : null,
+        reason: activeItem === 'feed' ? 'Damaged Feed' : activeItem === 'bird' ? 'Dead Birds' : 
+        activeItem === 'egg' ? 'Broken Eggs' : 'Spoiled Eggs',
+      },
+    };
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess(`Information recorded successfully`);
+        setFormData(prev => ({
+          ...prev,
+          branchId: brancheData?.length === 1 ? brancheData[0].id : "",
+          quantity: "",
+          age: "",
+          typeId: "",
+          feed: "",
+        }));
+      },
+      onError: err => {
+        setServerError(err.message || "Failed to process loss");
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setErrors({});
+          setServerError("");
+          setSuccess("");
+          setShake(false);
+        }, 5000);
+      },
+    });
 
-    try {
-      const payload = {
-        action: "add",
-        collection: "losses",
-        data: {
-          branchId: formData.branchId,
-          feed: tabConfig.showName ? formData.feed : null,
-          typeId: tabConfig.showType ? formData.typeId : null,
-          item: tabConfig.item,
-          itemId: selectedItem.id,
-          quantity: Number(formData.quantity),
-          age: tabConfig.showAge ? Number(formData.age) : null,
-          reason: activeItem === 'feed' ? 'Damaged Feed' : activeItem === 'bird' ? 'Dead Birds' : 
-          activeItem === 'egg' ? 'Broken Eggs' : 'Spoiled Eggs',
-        },
-      };
-
-      const res = await processData(payload);
-      setSuccess(`Information recorded successfully`);
-
-      setFormData(prev => ({
-        ...prev,
-        quantity: "",
-        age: "",
-        typeId: "",
-        feed: "",
-      }));
-      onSuccess?.();
-    } catch (err) {
-      setServerError(err.message || "Failed to process loss");
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setServerError("");
-        setSuccess("");
-        setShake(false);
-      }, 5000);
-    }
   };
   const fieldClass = name =>
     `${errors[name] ? "input-error" : ""} ${shake && errors[name] ? "shake" : ""}`;

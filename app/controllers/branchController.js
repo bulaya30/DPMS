@@ -193,7 +193,6 @@ async function restoreBranch(id) {
 
 async function process(payload) {
     if (!payload) { throw new Error('Invalid data'); }
-    // console.log(payload)
     const {data, action, user, id} = payload;
     if ( user.role !== 'admin') {
       throw new Error('Only admin can manage branches');
@@ -202,6 +201,7 @@ async function process(payload) {
     // Process the data
     switch (action) {
         case 'add': {
+          // return data
           return await addBranch(data);
         }
         break;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { checkDate, checkName, checkNumber } from "../../validations/validate";
-import { getBranches, getBirds, processData, getTypes } from "../../api";
-import { FaEdit, FaSave } from "react-icons/fa";
+import { useProcessEgg } from "../../hooks/useEggs";
+import {  FaSave } from "react-icons/fa";
 
 
 const normalizeDate = (value) => {
@@ -27,14 +27,14 @@ const normalizeDate = (value) => {
   return "";
 };
 
-function UpdateEgg({ eggs, branchData, typeData, onSuccess }) {
+function UpdateEgg({ eggs, branchData, typeData }) {
+  const {mutate, isPending} = useProcessEgg();
   const [branches, setBranches] = useState([]);
   const [types, setTypes] = useState([]);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     branch: "",
     type: "",
@@ -220,7 +220,7 @@ function UpdateEgg({ eggs, branchData, typeData, onSuccess }) {
   /* ================= SUBMIT ================= */
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!canEdit || !hasChanged || isSaving) return;
+    if (!canEdit || !hasChanged || isPending) return;
 
     let newErrors = {};
     Object.keys(formData).forEach(key => {
@@ -234,27 +234,26 @@ function UpdateEgg({ eggs, branchData, typeData, onSuccess }) {
       return;
     }
 
-    try {
-      setIsSaving(true);
-       const egg = eggs.find(
-        b => b.branchId === formData.branch && b.typeId === formData.type
-      );
-      if (!egg) return;
-      const payload = {
-        collection: "eggs",
-        action: "update",
-        id: egg.id,
-        data: {
-          branchId: formData.branch,
-          typeId: formData.type,
-          color: formData.color,
-          date: formData.date,
-          quantity: Number(formData.quantity),
-          price: Number(formData.price),
-        }
+    const egg = eggs.find(
+     b => b.branchId === formData.branch && b.typeId === formData.type
+    );
+    if (!egg) return;
+    const payload = {
+      collection: "eggs",
+      action: "update",
+      id: egg.id,
+      data: {
+        branchId: formData.branch,
+        typeId: formData.type,
+        color: formData.color,
+        date: formData.date,
+        quantity: Number(formData.quantity),
+        price: Number(formData.price),
+      }
     };
-    await processData(payload);
-    setSuccess("Information successfully!");
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Information successfully!");
         setFormData(prev => ({ 
           ...prev, 
           branch: branches.length === 1 ? branches[0].id : "", 
@@ -263,19 +262,18 @@ function UpdateEgg({ eggs, branchData, typeData, onSuccess }) {
           type:"", 
           color:"",
           price: "",
-      }));
-      onSuccess?.();
-    } catch (err) {
-      setServerError(err.message);
-    } finally {
-      setTimeout(() =>
-        setSuccess(""), 
-        setShake(false), 
-        setErrors(''), 
-        setServerError(''), 
-      5000);
-      setIsSaving(false)
-    }
+      })); 
+      },
+      onError: (err) => {
+        setServerError(err.message);
+      }
+    });
+    setTimeout(() =>
+      setSuccess(""), 
+      setShake(false), 
+      setErrors(''), 
+      setServerError(''), 
+    5000);
   };
 
   return (
@@ -413,11 +411,11 @@ function UpdateEgg({ eggs, branchData, typeData, onSuccess }) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={!hasEgg || isSaving}
-          className={`norrechel-btn save-btn ${isSaving ? "loading" : ""}`}
+          disabled={!hasEgg || isPending}
+          className={`norrechel-btn save-btn ${isPending ? "loading" : ""}`}
         >
-          {isSaving && <span className="spinner" />}
-          <FaSave /> {isSaving ? "Saving..." : "Save"}
+          {isPending && <span className="spinner" />}
+          <FaSave /> {isPending ? "Saving..." : "Save"}
         </button>
       </form>
     </div>

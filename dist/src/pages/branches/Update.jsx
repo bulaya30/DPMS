@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { checkName } from "../../validations/validate";
-import { processData } from "../../api";
-import { FaEdit, FaSave } from "react-icons/fa";
+import { useProcessBranch } from "../../hooks/useBranches";
+import { FaSave } from "react-icons/fa";
 
 /* ================= LOCATION DATA ================= */
 const LOCATION_DATA = {
@@ -11,7 +11,8 @@ const LOCATION_DATA = {
   Jinja: ["Jinja City", "Bugembe"]
 };
 
-function UpdateBranch({ branches, onSuccess }) {
+function UpdateBranch({ branches }) {
+  const {mutate, isPending: isSaving} = useProcessBranch();
   /* ================= STATE ================= */
   const [selectedBranchId, setSelectedBranchId] = useState("");
 
@@ -31,7 +32,6 @@ function UpdateBranch({ branches, onSuccess }) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ===================== SHAKE RESET ===================== */
   useEffect(() => {
@@ -135,42 +135,40 @@ function UpdateBranch({ branches, onSuccess }) {
       setShake(true);
       return;
     }
+    const payload = {
+      collection: "branches",
+      action: "update",
+      id: selectedBranchId,
+      data: {
+        ...(formData.name.trim() && { name: formData.name.trim() }),
+        district: formData.district.trim(),
+        city: formData.city.trim()
+      }
+    };
+    mutate(payload, {
+      onSuccess: ()=>{
+        setSuccess("Branch updated successfully!");
+        setErrors({});
+    
+        setOriginalData({
+          name: formData.name.trim() || originalData.name,
+          district: formData.district,
+          city: formData.city
+        });
+    
+        setFormData(prev => ({ ...prev, name: "" }));
+      },
+      onError: (err)=>{
+        setServerError(err.message || "Failed to update branch");
 
-    try {
-      setIsSaving(true);
-      const payload = {
-        collection: "branches",
-        action: "update",
-        id: selectedBranchId,
-        data: {
-          ...(formData.name.trim() && { name: formData.name.trim() }),
-          district: formData.district.trim(),
-          city: formData.city.trim()
-        }
-      };
-
-      await processData(payload);
-
-      setSuccess("Branch updated successfully!");
-      setErrors({});
-
-      setOriginalData({
-        name: formData.name.trim() || originalData.name,
-        district: formData.district,
-        city: formData.city
-      });
-
-      setFormData(prev => ({ ...prev, name: "" }));
-      onSuccess?.();
-    } catch (err) {
-      setServerError(err.message || "Failed to update branch");
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 4000);
-    }
+      },
+      onSettled: ()=>{
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    })
   };
 
   /* ===================== RENDER ===================== */

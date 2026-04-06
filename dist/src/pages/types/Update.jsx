@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { checkName } from "../../validations/validate";
-import { processData } from "../../api";
+import { useProcessType } from "../../hooks/useTypes";
 import { FaSave } from "react-icons/fa";
 
 function UpdateItemType({ types }) {
+  const {mutate, isPending: isSaving} = useProcessType();
   /* ================= STATE ================= */
   const [selectedTypeId, setSelectedTypeId] = useState("");
 
@@ -14,7 +15,6 @@ function UpdateItemType({ types }) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ===================== SHAKE RESET ===================== */
   useEffect(() => {
@@ -88,32 +88,34 @@ function UpdateItemType({ types }) {
       setShake(true);
       return;
     }
+    const payload = {
+      collection: "types",
+      action: "update",
+      id: selectedTypeId,
+      data: { name: formData.name.trim() }
+    };
+    mutate(payload, {
+      onSuccess: ()=> {
+        setSuccess("Item type updated successfully!");
+        setErrors({});
+    
+        setOriginalData({ name: formData.name.trim() });
+        setFormData(prev => ({ ...prev, name: "" }));
 
-    try {
-      setIsSaving(true);
-      const payload = {
-        collection: "types",
-        action: "update",
-        id: selectedTypeId,
-        data: { name: formData.name.trim() }
-      };
+      },
+      onError: (error)=>{
+        setServerError(error.message || "Failed to update item type");
 
-      await processData(payload);
+      },
+      onSettled: ()=>{
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
 
-      setSuccess("Item type updated successfully!");
-      setErrors({});
-
-      setOriginalData({ name: formData.name.trim() });
-      setFormData(prev => ({ ...prev, name: "" }));
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 4000);
-    } catch (err) {
-      setServerError(err.message || "Failed to update item type");
-    } finally {
-      setIsSaving(false);
-    }
+      }
+    })
+    
   };
 
   /* ===================== RENDER ===================== */

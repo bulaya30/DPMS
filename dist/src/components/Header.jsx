@@ -1,32 +1,18 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
 import { User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import ThemeToggle from "../components/Theme";
 import { ThemeContext } from "../components/ThemeContext";
+import useAuthStore from "../store/authStore";
 
 const Header = () => {
+  const user = useAuthStore(state => state.user);
   const { darkMode } = useContext(ThemeContext);
-  const [user, setUser] = useState(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-
-  const navigate = useNavigate();
   const profileRef = useRef(null);
 
-  /* ===================== AUTH ===================== */
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setUser(payload);
-    } catch {
-      handleLogout();
-    }
-  }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+    useAuthStore.getState().logout();
     window.location.replace("/login");
   };
 
@@ -64,7 +50,7 @@ const Header = () => {
               }
             >
               <User size={26} />
-              <span className="username">{user.name}</span>
+              <span className="username">{user.lastName}</span>
             </div>
 
             {showProfileDropdown && (

@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getBranches, getBirds, getEggs, getFeeds, getTypes, getLosses } from "../../api";
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+import { useGetBranches } from "../../hooks/useBranches";
+import { useGetBirds } from "../../hooks/useBirds";
+import { useGetEggs } from "../../hooks/useEggs";
+import { useGetFeeds } from "../../hooks/useFeeds";
+import { useGetTypes } from "../../hooks/useTypes";
+import { useGetLosses } from "../../hooks/useLoss";
+import { useSearchParams } from "react-router-dom";
+
 import AddLoss from "./Create";
 import UpdateLoss from "./Update";
 
@@ -7,7 +18,6 @@ import UpdateLoss from "./Update";
 const TABS = [
   { key: "dead-bird", label: "Dead Birds", item: "bird" },
   { key: "broken-egg", label: "Broken Eggs", item: "egg" },
-  { key: "spoiled-egg", label: "Spoiled Eggs", item: "spoiled-egg" },
   { key: "feed", label: "Damaged Feed", item: "feed" },
 ];
 /* ================= HELPERS ================= */
@@ -24,72 +34,62 @@ const formatDate = (date) => {
   return date.toLocaleDateString();
 };
 
-const normalizeToArray = (input) => {
-  if (Array.isArray(input)) return input;
-  if (input) return [input];
-  return [];
-};
 
 export default function Losses() {
-  const [branches, setBranches] = useState([]);
-  const [birds, setBirds] = useState([]);
-  const [eggs, setEggs] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [feeds, setFeeds] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: branches = [], isLoading: isLoadingBranches, error: errorBranches } = useGetBranches();
+  const { data: birds = [], isLoading: isLoadingBirds, error: errorBirds } = useGetBirds();
+  const { data: eggs = [], isLoading: isLoadingEggs, error: errorEggs } = useGetEggs();
+  const { data: feeds = [], isLoading: isLoadingFeeds, error: errorFeeds } = useGetFeeds();
+  const { data: types = [], isLoading: isLoadingTypes, error: errorTypes } = useGetTypes();
+  const { data: losses = [], isLoading: isLoadingLosses, error: errorLosses } = useGetLosses();
+ 
   const [activeTab, setActiveTab] = useState("dead-bird");
-  const [lossRecords, setLossRecords] = useState([]);
   const [error, setError] = useState(null);
 
-  /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const [br, t, b, e, f, l] = await Promise.all([
-          getBranches(),
-          getTypes(),
-          getBirds(),
-          getEggs(),
-          getFeeds(),
-          getLosses(),
-        ]);
-
-        setBranches(normalizeToArray(br));
-        setTypes(normalizeToArray(t));
-        setBirds(normalizeToArray(b));
-        setEggs(normalizeToArray(e));
-        setFeeds(normalizeToArray(f));
-        setLossRecords(normalizeToArray(l));
-      } catch (err) {
-        console.error(err);
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-  const reload = async () => {
-    const data = await getLosses();
-    setLossRecords(normalizeToArray(data));
-  }
-  // console.log(lossRecords);
+  const [searchParams, setSearchParams] = useSearchParams();
   /* ================= CURRENT TAB ================= */
   const currentTab = useMemo(
     () => TABS.find((t) => t.key === activeTab),
     [activeTab]
   );
   const filteredLosses = useMemo(() => {
-    return lossRecords
+    return losses
       .filter(loss => loss.item === currentTab.item)
       .map(loss => ({
         ...loss,
         date: formatDate(normalizeDate(loss.date)),
       }));
-  }, [lossRecords, currentTab]);
+  }, [losses, currentTab]);
+
+  const exportToExcel = () => {
+    const dataToExport = losses.map((row, index) => ({
+      "#": index + 1,
+      "Branch": row.branchName,
+      "Type": row.typeName ?? "-",
+      "Quantity": row.quantity,
+      "Reason": row.reason,
+      "Date": normalizeDate(row.date)?.toLocaleDateString(),
+    }))
+
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Loss Report");
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Loss_Report.xlsx`);
+  }
 
    /* ================= UI STATES ================= */
-  if (loading) {
+  if (isLoadingBranches || 
+      isLoadingBirds || 
+      isLoadingEggs || 
+      isLoadingFeeds || 
+      isLoadingTypes || 
+      isLoadingLosses
+    ) {
     return (
       <div className="loading-wrapper">
         <div className="spinner" />
@@ -98,13 +98,25 @@ export default function Losses() {
     );
   }
 
-  if (error) {
+  if (errorBranches || 
+      errorBirds || 
+      errorEggs || 
+      errorFeeds || 
+      errorTypes || 
+      errorLosses
+    ) {
     return (
       <div className="error-message">
-        <span>{error}</span>
+        <span>{errorBranches?.message || 
+          errorBirds?.message || 
+          errorEggs?.message || 
+          errorFeeds?.message || 
+          errorTypes?.message || 
+          errorLosses?.message}</span>
       </div>
     );
   }
+
 
   return (
     <div className={`dashboard-page `}>
@@ -137,7 +149,6 @@ export default function Losses() {
             feedData={feeds}
             brancheData={branches}
             typeData={types}
-            onSuccess={reload}
           />
         </div>
         <div className="update-form-container mb-6">
@@ -149,12 +160,16 @@ export default function Losses() {
             feedData={feeds}
             branchData={branches}
             typeData={types}
-            onSuccess={reload}
           />
         </div>
       </div>
       {currentTab.item !== 'spoiled-egg' && (
         <div className="norrechel-table-wrapper">
+          <div className="ispm-print-container">
+            <button onClick={exportToExcel} className="ispm-btn">
+              Export to Excel
+            </button>
+          </div>
           <table className="norrechel-table">
             <thead>
               <tr>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { checkName } from "../../validations/validate";
-import { processData } from "../../api";
-import { FaPlus, FaSave } from "react-icons/fa";
+import { useProcessType } from "../../hooks/useTypes";
+import { FaSave } from "react-icons/fa";
 
 function AddItemType() {
+  const {mutate, isPending: isSaving} = useProcessType();
   /* ================= STATE ================= */
   const [formData, setFormData] = useState({
     name: ""
@@ -13,7 +14,6 @@ function AddItemType() {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ===================== SHAKE RESET ===================== */
   useEffect(() => {
@@ -63,31 +63,30 @@ function AddItemType() {
       setShake(true);
       return;
     }
+    const payload = {
+      collection: "types",
+      action: "add",
+      data: {
+        name: formData.name.trim()
+      }
+    };
+    mutate(payload, {
+      onSuccess: ()=>{
+        setSuccess("Item type added successfully!");
+        setFormData({ name: "" });
 
-    try {
-      setIsSaving(true);
-      const payload = {
-        collection: "types",
-        action: "add",
-        data: {
-          name: formData.name.trim()
-        }
-      };
-
-      await processData(payload);
-
-      setSuccess("Item type added successfully!");
-      setFormData({ name: "" });
-      setErrors({});
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 4000);
-    } catch (err) {
-      setServerError(err.message || "Failed to add item type");
-    } finally {
-      setIsSaving(false);
-    }
+      },
+      onError: (error)=>{
+        setServerError(error.message || "Failed to add item type");
+      },
+      onSettled: ()=>{
+        setErrors({});
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    })
   };
 
   /* ===================== RENDER ===================== */
@@ -107,7 +106,7 @@ function AddItemType() {
         <div className="norrechel-grouped-inputs">
           <div>
             <label className={`${errors.name ? "error-text" : ""} ${shake && errors.name ? "shake" : ""}`}>
-              Item Type Name
+              Type Name
             </label>
             <input
               type="text"

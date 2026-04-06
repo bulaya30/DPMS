@@ -3,7 +3,7 @@ import { checkName, checkNumber } from "../../validations/validate";
 import { getBranches, getTypes, processData } from "../../api";
 import { FaPlus, FaEdit } from "react-icons/fa";
 
-function AddVaccination({ vaccination = null, onSuccess }) {
+function AddVaccination({ vaccination = null, }) {
   const [branches, setBranches] = useState([]);
   const [types, setTypes] = useState([]);
 

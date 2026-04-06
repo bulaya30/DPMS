@@ -7,7 +7,7 @@ import Header from "../components/Header";
 import { ThemeContext } from "../components/ThemeContext";
 
 // Pages
-import Dashboard from "./Dashboard";
+import Dashboard from "./home/Dashboard";
 import Birds from "./birds/List";
 import Sales from "./sales/create";
 import Feeds from "./feeds/Feeds";
@@ -40,15 +40,15 @@ const Index = () => {
   /* ================= ROLE PERMISSIONS ================= */
   const dashboardRoles = ["admin", "manager"];
   const canAccessDashboard = dashboardRoles.includes(user?.role);
-
+  
   /* ================= TAB CONTROL ================= */
   const requestedTab = searchParams.get("tab");
-
+  
   const defaultTab = canAccessDashboard ? "dashboard" : "sales";
-
+  
   const activePage = useMemo(() => {
     if (!requestedTab) return defaultTab;
-
+    
     // 🚫 Restrict dashboard
     if (requestedTab === "dashboard" && !canAccessDashboard) {
       return "sales";
@@ -56,6 +56,8 @@ const Index = () => {
 
     return requestedTab;
   }, [requestedTab, defaultTab, canAccessDashboard]);
+  
+  // console.log('ACTIVE PAGE ',activePage);
 
   /* ================= PAGE RENDER ================= */
   const renderContent = () => {

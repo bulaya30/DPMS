@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { checkNumber, checkName } from "../../validations/validate";
-import { processData } from "../../api";
-import { FaEdit, FaSave } from "react-icons/fa";
+import { useProcessFeed } from "../../hooks/useFeeds";
+import { FaSave } from "react-icons/fa";
 
-function UpdateFeed({ feeds = [], branchData = [], onSuccess }) {
-  const [branches, setBranches] = useState([]);
+function UpdateFeed({ feedData = [], branchData = [] }) {
+  const { mutate, isPending: isSaving } = useProcessFeed();
+  const feeds = feedData;
+  const branches = branchData || [];
+
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [shake, setShake] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -28,18 +30,6 @@ function UpdateFeed({ feeds = [], branchData = [], onSuccess }) {
   });
 
   const [hasFeed, setHasFeed] = useState(false);
-
-  /* ================= INIT BRANCHES ================= */
-  useEffect(() => {
-    setBranches(branchData);
-
-    if (branchData.length === 1) {
-      setFormData(prev => ({
-        ...prev,
-        branch: branchData[0].id
-      }));
-    }
-  }, [branchData]);
 
 
   /* ================= FILTERED FEEDS ================= */
@@ -165,39 +155,36 @@ function UpdateFeed({ feeds = [], branchData = [], onSuccess }) {
       setShake(true);
       return;
     }
-
-    try {
-      setIsSaving(true);
-
-      await processData({
-        collection: "feeds",
-        action: "update",
-        id: formData.feedId,
-        data: {
-          quantity: Number(formData.quantity),
-          name: formData.name,
-          unit: formData.unit,
-        },
-      });
-      setSuccess("Information updated successfully!");
-
-      setFormData(prev => ({
-        ...prev,
-        feedId: "",
-        name: "",
-        quantity: "",
-        unit: "",
-      }));
-      onSuccess?.();
-    } catch (err) {
-      setServerError(err.message || "Update failed");
-    } finally {
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 5000);
-      setIsSaving(false);
-    }
+    mutate({
+      collection: "feeds",
+      action: "update",
+      id: formData.feedId,
+      data: {
+        quantity: Number(formData.quantity),
+        name: formData.name,
+        unit: formData.unit,
+      },
+    }, {
+      onSuccess: () => {
+        setSuccess("Information updated successfully!");
+        setFormData(prev => ({
+          ...prev,
+          feedId: "",
+          name: "",
+          quantity: "",
+          unit: "",
+        }));
+      },
+      onError: err => {
+        setServerError(err.message || "Update failed");
+      }, 
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    });
   };
 
   /* ================= UI ================= */

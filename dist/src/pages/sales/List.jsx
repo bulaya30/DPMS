@@ -1,11 +1,17 @@
 import React, { useEffect, useState, useMemo, useContext } from "react";
-import { ThemeContext } from "../../components/ThemeContext";
-import { getSales, getBranches, getTypes } from "../../api";
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+import { useGetBranches } from "../../hooks/useBranches";
+import { useGetSales } from "../../hooks/useSales";
+import { useGetTypes } from "../../hooks/useTypes";
 
 import KPIStatCard from "../../components/KPIStatCard";
 import SalesChart from "../../components/SalesChart";
 
 import { Bird, Egg } from "lucide-react";
+import useAuthStore from "../../store/authStore";
 
 /* ================= HELPERS ================= */
 const normalizeDate = d => {
@@ -23,35 +29,18 @@ const TABS = [
 ];
 
 export default function SalesReport() {
-  const { darkMode } = useContext(ThemeContext);
-  const user = JSON.parse(localStorage.getItem("user"));
+  const { data: branches = [], loading: loadingBranches, error: errorBranches } = useGetBranches();
+  const { data: sales = [], loading: loadingSales, error: errorSales } = useGetSales();
+  const { data: types = [], loading: loadingTypes, error: errorTypes } = useGetTypes();
+  const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === "admin";
-
-  const [sales, setSales] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [types, setTypes] = useState([]);
 
   const [activeTab, setActiveTab] = useState("bird");
   const [branchFilter, setBranchFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("month");
 
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const [s, b, t] = await Promise.all([
-        getSales(),
-        getBranches(),
-        getTypes(),
-      ]);
-      setSales(s || []);
-      setBranches(b || []);
-      setTypes(t || []);
-      setLoading(false);
-    })();
-  }, []);
-
+  
   /* ================= FILTER ================= */
   const filteredSales = useMemo(() => {
     const now = Date.now();
@@ -73,7 +62,28 @@ export default function SalesReport() {
       )
       .sort((a, b) => b.date - a.date);
   }, [sales, activeTab, branchFilter, typeFilter, dateFilter]);
+  const exportToExcel = () => {
+    const dataToExport = sales.map((sale, index)=> ({
+      "#": index + 1,
+      "Item": sale.item,
+      "Branch": sale.branchName,
+      "Type": sale.typeName,
+      "Quantity": sale.quantity,
+      "Price": sale.price,
+      "Total": sale.total,
+      "Date": normalizeDate(sale.date),
+      
+    }))
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
 
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Sales_Report.xlsx`);
+  }
   /* ================= KPI ================= */
   const stats = useMemo(() => {
     const byType = {};
@@ -93,7 +103,22 @@ export default function SalesReport() {
     };
   }, [filteredSales]);
 
-  if (loading) return <div className="loading-wrapper">Loading sales…</div>;
+  if(loadingBranches || loadingSales || loadingTypes){
+     return (
+      <div className="loading-wrapper">
+        <div className="spinner"></div>
+        <span>Loading Data...</span>
+      </div>
+    );
+  }
+
+  if(errorBranches || errorSales || errorTypes){
+    return (
+      <div className="error-message">
+        {errorBranches?.message || errorSales?.message || errorTypes?.message}
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-page">
@@ -176,6 +201,11 @@ export default function SalesReport() {
 
       {/* ================= TABLE ================= */}
       <div className="norrechel-table-wrapper">
+        <div className="ispm-print-container">
+          <button onClick={exportToExcel} className="ispm-btn">
+            Export to Excel
+          </button>
+        </div>
         <table className="norrechel-table">
           <thead>
             <tr>

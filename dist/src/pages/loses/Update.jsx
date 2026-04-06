@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { checkNumber, checkName } from "../../validations/validate";
-import { processData } from "../../api";
+import { useProcessLoss } from "../../hooks/useLoss";
 import { FaSave } from "react-icons/fa";
 
 const LOSS_TAB_CONFIG = {
@@ -20,6 +20,7 @@ export default function UpdateLoss({
   typeData = [],
   onSuccess
 }) {
+  const { mutate, isPending: isSaving } = useProcessLoss();
   const tabConfig = LOSS_TAB_CONFIG[activeItem] || {};
 
   const [formData, setFormData] = useState({
@@ -33,7 +34,6 @@ export default function UpdateLoss({
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [shake, setShake] = useState(false);
 
   /* ================== RESET ON TAB ================== */
@@ -184,38 +184,38 @@ export default function UpdateLoss({
       setShake(true);
       return;
     }
-
-    try {
-      setIsSaving(true);
-
-      await processData({
-        collection: "losses",
-        action: "update",
-        id: selectedLoss.id,
-        data: {
-          branchId: selectedLoss.branchId,
-          typeId: tabConfig.showType ? selectedLoss.typeId : null,
-          item: tabConfig.item,
-          itemId: selectedItem.id,
-          quantity: Number(formData.quantity),
-          age: tabConfig.showAge ? Number(formData.age) : null,
-          name: tabConfig.showName ? Number(formData.feed) : null,
-          reason: activeItem === 'feed' ? 'Damaged Feeds quantity correction' : activeItem === 'bird' ? 'Dead Birds quantity correction' : 
-          activeItem === 'egg' ? 'Broken Eggs quantity correction' : 'Spoiled Eggs quantity correction',
-        },
-      });
-      setSuccess("Information updated successfully");
-      formData(prev => ({ ...prev, quantity: "", typeId: "", age: "", feed: "" }));
-      onSuccess?.()
-    } catch (err) {
-      setServerError(err.message || "Failed to update loss");
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 5000);
+    const payload = {
+      collection: "losses",
+      action: "update",
+      id: selectedLoss.id,
+      data: {
+        branchId: selectedLoss.branchId,
+        typeId: tabConfig.showType ? selectedLoss.typeId : null,
+        item: tabConfig.item,
+        itemId: selectedItem.id,
+        quantity: Number(formData.quantity),
+        age: tabConfig.showAge ? Number(formData.age) : null,
+        name: tabConfig.showName ? Number(formData.feed) : null,
+        reason: activeItem === 'feed' ? 'Damaged Feeds quantity correction' : activeItem === 'bird' ? 'Dead Birds quantity correction' : 
+        activeItem === 'egg' ? 'Broken Eggs quantity correction' : 'Spoiled Eggs quantity correction',
+      },
     }
+    mutate(payload, {
+      onSuccess: () =>{
+        setSuccess("Information updated successfully");
+        setFormData(prev => ({ ...prev, quantity: "", typeId: "", age: "", feed: "" }));
+      },
+      onError: (err) => {
+        setServerError(err.message || "Failed to update loss");
+      },
+      onSettled: () =>{
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    })
+    
   };
   const fieldClass = name =>
     `${errors[name] ? "input-error" : ""} ${shake && errors[name] ? "shake" : ""}`;

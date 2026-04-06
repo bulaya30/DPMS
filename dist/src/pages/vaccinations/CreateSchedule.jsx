@@ -1,32 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { getTypes, processData } from "../../api";
 import { checkName, checkNumber } from "../../validations/validate";
 import { FaPlus, FaSave, FaTrash } from "react-icons/fa";
+import { useProcessSchedule } from "../../hooks/useSchedule";
 
-function AddSchedule({ onAcallback }) {
-  const [birdTypes, setBirdTypes] = useState([]);
+function AddSchedule({typeData = []}) {
+  const { mutate, isPending: isSaving } = useProcessSchedule();
+  const types = typeData;
   const [formData, setFormData] = useState({
     typeId: "",
     name: "",
     schedule: [{ ageInDays: "", vaccine: "" }]
   });
-
+  const [success, setSuccess] = useState("");
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  /* ================= FETCH BIRD TYPES ================= */
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getTypes();
-        setBirdTypes(data);
-      } catch (error) {
-        processData(error);
-      }
-    })();
-  }, []);
 
   /* ================= BASIC CHANGE ================= */
   const handleChange = e => {
@@ -56,6 +43,14 @@ function AddSchedule({ onAcallback }) {
     setFormData({ ...formData, schedule: updated });
   };
 
+  /* ===================== SHAKE RESET ===================== */
+  useEffect(() => {
+    if (!shake) return;
+    const timer = setTimeout(() => setShake(false), 500);
+    return () => clearTimeout(timer);
+  }, [shake]);
+  
+
   /* ================= VALIDATE ================= */
   const validate = () => {
     const newErrors = {};
@@ -82,48 +77,50 @@ function AddSchedule({ onAcallback }) {
     e.preventDefault();
     if (!validate() || isSaving) return;
 
-    try {
-      setLoading(true);
-      setIsSaving(true);
+    const payload = {
+      collection: "schedules",
+      action: "add",
+      data: {
+        typeId: formData.typeId,
+        name: formData.name,
+        active: true,
+        schedule: formData.schedule.map(s => ({
+          ageInDays: Number(s.ageInDays),
+          vaccine: s.vaccine
+        }))
+      }
+    };
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Schedule added successfully!");
+        setFormData({
+          typeId: "",
+          name: "",
+          schedule: [{ ageInDays: "", vaccine: "" }]
+        });
+      },
+      onError: error => {
+        setErrors(error);
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+          setErrors({});
+        }, 5000);
+      }
+    });
 
-      const payload = {
-        collection: "schedules",
-        action: "add",
-        data: {
-          typeId: formData.typeId,
-          name: formData.name,
-          active: true,
-          schedule: formData.schedule.map(s => ({
-            ageInDays: Number(s.ageInDays),
-            vaccine: s.vaccine
-          }))
-        }
-      };
-      const result = await processData(payload);
-      // console.log(result);
-      setFormData({
-        typeId: "",
-        name: "",
-        schedule: [{ ageInDays: "", vaccine: "" }]
-      });
-
-      onAcallback?.();
-      onClose?.();
-
-    } catch (error) {
-      processData(error);
-    } finally {
-      setErrors({});
-      setLoading(false);
-      setShake(false);
-      setIsSaving(false);
-    }
   };
 
   return (
     <div className="norrechel-form-container">
+
+      {success && <p className="success-text">{success}</p>}
+      {errors && <p className="error-text">{errors.message}</p>}
+
       <form onSubmit={handleSubmit} autoComplete="off">
-        <h2>Add Vaccination Schedule</h2>
+        <h2>Add Schedule</h2>
         {/* ================= HEADER ================= */}
         <div className="inputs">
           <div className="norrechel-grouped-inputs">
@@ -138,7 +135,7 @@ function AddSchedule({ onAcallback }) {
                 className={errors.typeId ? "input-error" : ""}
               >
                 <option value="">--Select--</option>
-                {birdTypes.map(type => (
+                {types.map(type => (
                   <option key={type.id} value={type.id}>
                     {type.name}
                   </option>

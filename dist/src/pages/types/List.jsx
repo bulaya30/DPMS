@@ -1,67 +1,41 @@
-import React, { useState, useEffect } from "react";
-import { getTypes, processData } from "../../api";
+import React, { useState } from 'react'
+import { useGetTypes, useProcessType } from '../../hooks/useTypes'
+import useAuthStore from '../../store/authStore';
+import AddItemType from './Create';
+import UpdateItemType from './Update';
+import ConfirmModal from '../../components/Models/Confirm';
+import AlertModal from '../../components/Models/AlertModal';
 
-import AddItemType from "./Create";
-import UpdateItemType from "./Update";
-import ConfirmModal from "../../components/Models/Confirm";
-import AlertModal from "../../components/Models/AlertModal";
 
-import { isAdmin } from "../../utils/permission";
+  /* ================= DATE FORMATTER ================= */
+  function toJSDate(timestamp) {
+    if (!timestamp) return null;
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp._seconds) return new Date(timestamp._seconds * 1000);
+    return new Date(timestamp);
+  }
 
-const user = JSON.parse(localStorage.getItem("user"));
-const userRole = user?.role;
-const canManage = isAdmin(userRole);
+export default function Types() {
 
-/* ================= DATE FORMATTER ================= */
-const formatDate = (date) => {
-  if (!date) return "-";
-  return new Date(date).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  });
-};
+  const {data: types = [], isLoading, error } = useGetTypes();
+  const updateType = useProcessType();
 
-function Types() {
-  const [types, setTypes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const user = useAuthStore((state) => state.user);
+  const userRole = user?.role;
+  const isAdmin = userRole === "admin";
+
   const [selectedItemType, setSelectedItemType] = useState(null);
-
+    
   const [updatingId, setUpdatingId] = useState(null);
   const [showMessage, setShowMessage] = useState(false);
   const [messageData, setMessageData] = useState({
     title: "",
     message: "",
   });
-
+    
   const [showConfirm, setShowConfirm] = useState(false);
 
-  /* ================= FETCH DATA ================= */
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getTypes();
-      setTypes(data || []);
-    } catch (err) {
-      setError(err.message);
-      setMessageData({
-        title: "Error",
-        message: err.message || "Failed to load item types",
-      });
-      setShowMessage(true);
-    }
-    setLoading(false);
-  };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-  const reload = async () => {
-    const data = await getTypes();
-    setTypes(data || []);
-  }
   /* ================= OPEN CONFIRM ================= */
   const handleToggleRequest = (type) => {
     if (type.active && type.inUse) {
@@ -87,12 +61,12 @@ function Types() {
     setShowConfirm(false);
 
     try {
-      await processData({
+      updateType.mutate({
         collection: "types",
         action: "update",
         id,
         data: { active: !active, name, restore: !active },
-      });
+      })
 
       setMessageData({
         title: "Success",
@@ -102,7 +76,6 @@ function Types() {
       });
       setShowMessage(true);
 
-      fetchData();
     } catch (err) {
       setMessageData({
         title: "Error",
@@ -114,152 +87,148 @@ function Types() {
       setSelectedItemType(null);
     }
   };
-  /* ================= RENDER ================= */
+
+  if(isLoading) {
+    <div className="loading-wrapper">
+      <div className="spinner"></div>
+      <span>Loading data...</span>
+    </div>
+  }
+
+  if(error) {
+    <div className="error-message">
+      {error}
+    </div>
+  }
+
+
   return (
-    <>
-      {loading && (
-        <div className="loading-wrapper">
-          <div className="spinner"></div>
-          <span>Loading data...</span>
+    <div className="dashboard-page">
+
+      {/* ================= HERO ================= */}
+      <div className="dashboard-hero">
+        <h1>Types</h1>
+        <p>Types Management</p>
+      </div>
+
+      {isAdmin && (
+        <div className="crud-container">
+          <div className="add-form-container">
+            <AddItemType />
+          </div>
+      
+          <div className="update-form-container">
+            <UpdateItemType
+              types={types}
+              selectedItemType={selectedItemType}
+            />
+          </div>
         </div>
       )}
+      {/* ================= TABLE ================= */}
+      <div className="norrechel-table-wrapper">
+        <h3>Item Type Details</h3>
 
-      {error && <div className="error-message">{error}</div>}
+        <table className="norrechel-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Date</th>
+              {isAdmin && <th>Action</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {types.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{ textAlign: "center" }}>
+                  No item types found
+                </td>
+              </tr>
+            ) : (
+              types.map((itemType, index) => {
+                const isUpdating = updatingId === itemType.id;
 
-      {!loading && !error && (
-        <div className="dashboard-page">
-          {/* ================= HERO ================= */}
-          <div className="dashboard-hero">
-            <h1>Types</h1>
-            <p>Types Management</p>
-          </div>
-
-          {canManage && (
-            <div className="crud-container">
-              <div className="add-form-container">
-                <AddItemType onSuccess={reload} />
-              </div>
-
-              <div className="update-form-container">
-                <UpdateItemType
-                  types={types}
-                  selectedItemType={selectedItemType}
-                  onSuccess={reload}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ================= TABLE ================= */}
-          <div className="norrechel-table-wrapper">
-            <h3>Item Type Details</h3>
-
-            <table className="norrechel-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  {canManage && <th>Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {types.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: "center" }}>
-                      No item types found
-                    </td>
-                  </tr>
-                ) : (
-                  types.map((itemType, index) => {
-                    const isUpdating = updatingId === itemType.id;
-
-                    return (
-                      <tr
-                        key={itemType.id}
-                        className={!itemType.active ? "row-inactive" : ""}
+                return (
+                  <tr
+                    key={itemType.id}
+                    className={!itemType.active ? "row-inactive" : ""}
+                  >
+                    <td>{index + 1}</td>
+                    <td>{itemType.name}</td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          itemType.active ? "active" : "inactive"
+                        }`}
                       >
-                        <td>{index + 1}</td>
-                        <td>{itemType.name}</td>
+                        {itemType.active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+
+                    <td>{toJSDate(itemType.date).toLocaleDateString()}</td>
+
+                      {isAdmin && (
                         <td>
-                          <span
-                            className={`status-badge ${
-                              itemType.active ? "active" : "inactive"
-                            }`}
-                          >
-                            {itemType.active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-
-                        {/* ✅ DATE FIX HERE */}
-                        <td>{formatDate(itemType.createdAt)}</td>
-
-                        {canManage && (
-                          <td>
-                            <button
-                              className={`table-btn ${
-                                itemType.active
-                                  ? itemType.inUse
-                                    ? "activate-btn"
-                                    : "delete-btn"
-                                  : "delete-btn"
-                              }`}
-                              disabled={
-                                isUpdating ||
-                                (itemType.active && itemType.inUse)
-                              }
-                              onClick={() =>
-                                handleToggleRequest(itemType)
-                              }
-                            >
-                              {itemType.active
+                          <button
+                            className={`table-btn ${
+                              itemType.active
                                 ? itemType.inUse
-                                  ? "In Use"
-                                  : "Deactivate"
-                                : "Restore"}
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                                  ? "activate-btn"
+                                  : "delete-btn"
+                                : "delete-btn"
+                            }`}
+                            disabled={
+                              isUpdating ||
+                              (itemType.active && itemType.inUse)
+                            }
+                            onClick={() =>
+                              handleToggleRequest(itemType)
+                            }
+                          >
+                            {itemType.active
+                              ? itemType.inUse
+                                ? "In Use"
+                                : "Deactivate"
+                              : "Restore"}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+        </table>
+      </div>
+      {/* ================= CONFIRM MODAL ================= */}
+      <ConfirmModal
+        isOpen={showConfirm}
+        title="Confirm Action"
+        message={
+          selectedItemType
+          ? `Are you sure you want to ${
+              selectedItemType.active ? "deactivate" : "restore"
+            } item type "${selectedItemType.name}"?`
+          : ""
+        }
+        confirmText="Yes, Continue"
+        cancelText="Cancel"
+        onConfirm={confirmToggleStatus}
+        onCancel={() => {
+          setShowConfirm(false);
+          setSelectedItemType(null);
+        }}
+      />
 
-          {/* ================= CONFIRM MODAL ================= */}
-          <ConfirmModal
-            isOpen={showConfirm}
-            title="Confirm Action"
-            message={
-              selectedItemType
-                ? `Are you sure you want to ${
-                    selectedItemType.active ? "deactivate" : "restore"
-                  } item type "${selectedItemType.name}"?`
-                : ""
-            }
-            confirmText="Yes, Continue"
-            cancelText="Cancel"
-            onConfirm={confirmToggleStatus}
-            onCancel={() => {
-              setShowConfirm(false);
-              setSelectedItemType(null);
-            }}
-          />
-
-          {/* ================= ALERT MODAL ================= */}
-          <AlertModal
-            isOpen={showMessage}
-            title={messageData.title}
-            message={messageData.message}
-            onClose={() => setShowMessage(false)}
-          />
-        </div>
-      )}
-    </>
-  );
+      {/* ================= ALERT MODAL ================= */}
+      <AlertModal
+        isOpen={showMessage}
+        title={messageData.title}
+        message={messageData.message}
+        onClose={() => setShowMessage(false)}
+      />
+    </div>
+  )
 }
-
-export default Types;

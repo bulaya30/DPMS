@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import {
-  getBirds,
-  getEggs,
-  getBranches,
-  getTypes,
-  getDailySales,
-  processData,
-} from "../../api";
-import { FaPlus, FaSave } from "react-icons/fa";
+import { useGetBirds } from "../../hooks/useBirds";
+import { useGetEggs } from "../../hooks/useEggs";
+import { useGetBranches } from "../../hooks/useBranches";
+import { useGetTypes } from "../../hooks/useTypes";
+import { useGetDailySales } from "../../hooks/useSales";
+import { useProcessSale } from "../../hooks/useSales";
+
+import { FaSave } from "react-icons/fa";
 import { checkName, checkNumber } from "../../validations/validate";
 
 export function normalizeToArray(input) {
@@ -18,6 +17,13 @@ export function normalizeToArray(input) {
 }
 
 const Sales = () => {
+  const {data: branches = [], isLoading: isLoadingBranches, error: errorBranches } = useGetBranches();
+  const {data: types = [], isLoading: isLoadingTypes, error: errorTypes } = useGetTypes();
+  const {data: birds = [], isLoading: isLoadingBirds, error: errorBirds } = useGetBirds();
+  const {data: eggs = [], isLoading: isLoadingEggs, error: errorEggs } = useGetEggs();
+  const {data: sales = [], isLoading: isLoadingSales, error: errorSales} = useGetDailySales();
+  const { mutate, isPending: isSaving} = useProcessSale();
+
   const [formData, setFormData] = useState({
     item: "",
     branchId: "",
@@ -28,46 +34,7 @@ const Sales = () => {
     price: 0,
   });
 
-  const [branches, setBranches] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [birds, setBirds] = useState([]);
-  const [eggs, setEggs] = useState([]);
-  const [sales, setSales] = useState([]);
-
-  const [errors, setErrors] = useState({});
-  const [serverError, setServerError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  /* ================= FETCH DATA ================= */
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [salesData, birdsData, eggsData, branchesData, typesData] =
-        await Promise.all([
-          getDailySales(),
-          getBirds(),
-          getEggs(),
-          getBranches(),
-          getTypes(),
-        ]);
-
-      setSales(normalizeToArray(salesData));
-      setBranches(normalizeToArray(branchesData));
-      setTypes(normalizeToArray(typesData));
-      setBirds(normalizeToArray(birdsData));
-      setEggs(normalizeToArray(eggsData));
-    } catch (err) {
-      setServerError("Failed to fetch data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
+  
   /* ================= PRESELECT BRANCH ================= */
   useEffect(() => {
     if (branches.length === 1) {
@@ -95,7 +62,9 @@ const Sales = () => {
   /* ================= AUTO PRICE (TYPE BASED) ================= */
   useEffect(() => {
     if (!formData.typeId || !formData.item) {
-      setFormData(prev => ({ ...prev, price: 0 }));
+      if (formData.price !== 0) {
+        setFormData(prev => ({ ...prev, price: 0 }));
+      }
       return;
     }
 
@@ -104,10 +73,16 @@ const Sales = () => {
     const selected = source.find(
       i => String(i.typeId) === String(formData.typeId)
     );
-    setFormData(prev => ({
-      ...prev,
-      price: selected?.price || 0,
-    }));
+
+    const newPrice = selected?.price || 0;
+
+    if (formData.price !== newPrice) {
+      setFormData(prev => ({
+        ...prev,
+        price: newPrice,
+      }));
+    }
+
   }, [formData.typeId, formData.item, birds, eggs]);
 
   /* ================= VALIDATION ================= */
@@ -193,49 +168,34 @@ const Sales = () => {
       return;
     }
 
-    setIsSaving(true);
+    const payload = {
+      collection: "sales",
+      action: "add",
+      data: {
+        branchId: formData.branchId,
+        item: formData.item,
+        typeId: formData.typeId,
+        age: formData.item === "bird" ? Number(formData.age) : null,
+        quantity: Number(formData.quantity),
+      },
+    };
 
-    try {
-      const payload = {
-        collection: "sales",
-        action: "add",
-        data: {
-          branchId: formData.branchId,
-          item: formData.item,
-          typeId: formData.typeId,
-          age: formData.item === "bird" ? Number(formData.age) : null,
-          quantity: Number(formData.quantity),
-        },
-      };
+    mutate(payload, {
+      onSuccess: () =>{
+         setFormData(prev => ({
+          ...prev,
+          typeId: "",
+          age: "",
+          quantity: "",
+          price: 0,
+        }));
+      },
+      onError: error => {
+        setServerError(error.message || "Failed to save sale");
+      }
+    })
 
-      const res = await processData(payload);
-      // console.log(res)
-
-      setFormData(prev => ({
-        ...prev,
-        typeId: "",
-        age: "",
-        quantity: "",
-        price: 0,
-      }));
-      await refreshSales();
-    } catch (err) {
-      console.log("Failed to save sale:", err.message);
-      setServerError("Failed to save sale");
-    } finally {
-      setIsSaving(false);
-    }
   };
-
-  const refreshSales = async () => {
-    try {
-      const salesData = await getDailySales();
-      setSales(normalizeToArray(salesData));
-    } catch (err) {
-      console.log("Failed to load daily sales:", err.message);
-    }
-  };
-
 
   const total = (formData.quantity || 0) * (formData.price || 0);
 
@@ -245,7 +205,7 @@ const Sales = () => {
     (formData.item === "egg" && !formData.typeId);
 
   /* ================= UI STATES ================= */
-  if (loading) {
+  if (isLoadingBranches || isLoadingTypes || isLoadingBirds || isLoadingEggs || isLoadingSales) {
     return (
       <div className="loading-wrapper">
         <div className="spinner" />
@@ -254,7 +214,13 @@ const Sales = () => {
     );
   }
 
-  if (serverError) return <div className="error-message">{serverError.message}</div>;
+  if(errorBranches || errorTypes || errorBirds || errorEggs || errorSales) {
+    return (
+      <div className="error-message">
+        {errorBranches || errorTypes || errorBirds || errorEggs || errorSales}
+      </div>
+    );
+  }
 
   return (
     <div className={`dashboard-page `}>

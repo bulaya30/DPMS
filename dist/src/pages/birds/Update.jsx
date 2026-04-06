@@ -1,56 +1,53 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { checkNumber, checkName } from "../../validations/validate";
-import { processData } from "../../api";
-import { FaEdit, FaSave } from "react-icons/fa";
+import { useProcessBird } from "../../hooks/useBirds";
+import { FaSave } from "react-icons/fa";
 
-function UpdateBird({birdData, brancheData, typeData }) {
-  const [branches, setBranches] = useState([]);
-  const [types, setTypes] = useState([]);
+function UpdateBird({birdData = [], brancheData = [], typeData = [] }) {
+  const {mutate, isPending: isSaving} = useProcessBird();
+
+  const branches = Array.isArray(brancheData) ? brancheData : [brancheData];;
+  const types = Array.isArray(typeData) ? typeData : [typeData];;
+  const birds = Array.isArray(birdData) ? birdData : [birdData];;
+
   const [formData, setFormData] = useState({
     branchId: "",
     typeId: "",
     quantity: "",
     age: "",
   });
-  // console.log(birdData)
-  const [originalData, setOriginalData] = useState({
-    quantity: "",
-    age: "",
-  });
+  
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [hasBird, setHasBird] = useState(false);
 
-  /* ================= FETCH BRANCHES & TYPES ================= */
+
   useEffect(() => {
-    const fetchData = async () => {
-      const normalizedBranches = Array.isArray(brancheData) ? brancheData : [brancheData];
-      setBranches(normalizedBranches);
-      setTypes(typeData);
-      
-      // Pre-select branch if only one
-      if (normalizedBranches.length === 1) {
-        setFormData(prev => ({ ...prev, branchId: normalizedBranches[0].id }));
-      }
-    };
-    fetchData();
-  }, [brancheData, typeData]);
+    if (branches.length === 1) {
+      setFormData(prev => ({ ...prev, branchId: branches[0].id }));
+    }
+  }, [branches]);
+
   /* ================= DERIVE AGES ================= */
   const existingAges = useMemo(() => {
-    if (!birdData || !formData.branchId || !formData.typeId) return [];
-      return [...new Set(
-        birdData
-          .filter(b =>
-            b.branchId === formData.branchId &&
-            b.typeId === formData.typeId &&
-            b.active
-          )
+    if (!birds || !formData.branchId || !formData.typeId) return [];
+
+    return [...new Set(
+      birds
+        .filter(b =>
+          String(b.branchId) === String(formData.branchId) &&
+          String(b.typeId) === String(formData.typeId) &&
+          b.active
+        )
         .map(b => Number(b.age))
     )].sort((a, b) => a - b);
-  }, [birdData, formData.branchId, formData.typeId]);
+
+
+
+  }, [birds, formData.branchId, formData.typeId]);
+  
   /* ================= LOAD SELECTED BIRD ================= */
   useEffect(() => {
     const { branchId, typeId, age } = formData;
@@ -61,7 +58,7 @@ function UpdateBird({birdData, brancheData, typeData }) {
       return;
     }
 
-    const bird = birdData.find(
+    const bird = birds.find(
       b =>
         String(b.branchId) === String(branchId) &&
         String(b.typeId) === String(typeId) &&
@@ -70,7 +67,7 @@ function UpdateBird({birdData, brancheData, typeData }) {
 
     if (!bird) {
       setHasBird(false);
-      setFormData(prev => ({ ...prev, quantity: "", }));
+      setFormData(prev => ({ ...prev, quantity: "" }));
       return;
     }
 
@@ -79,7 +76,7 @@ function UpdateBird({birdData, brancheData, typeData }) {
       ...prev,
       quantity: bird.quantity ?? "",
     }));
-  }, [formData.branchId, formData.typeId, formData.age, birdData]);
+  }, [formData.branchId, formData.typeId, formData.age, birds]);
 
   /* ================= VALIDATION ================= */
   const validateField = (name, value) => {
@@ -151,39 +148,43 @@ function UpdateBird({birdData, brancheData, typeData }) {
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const bird = birdData.find(
-        b => b.branchId === formData.branchId &&
-        b.typeId === formData.typeId &&
+    const bird = birds.find(
+      b =>
+        String(b.branchId) === String(formData.branchId) &&
+        String(b.typeId) === String(formData.typeId) &&
         Number(b.age) === Number(formData.age)
-      );
-      if (!bird) return;
+    );
 
-      await processData({
-        collection: "birds",
-        action: "update",
-        id: bird.id,
-        data: {
-          branchId: bird.branchId,
-          typeId: bird.typeId,
-          quantity: Number(formData.quantity),
-          age: Number(formData.age),
-        },
-      });
+    if (!bird) return;
 
-      setSuccess("Information updated successfully!");
-    } catch (err) {
-      setServerError(err.message);
-    } finally {
-      setTimeout(() => {
-        setShake(false);
-        setErrors({});
-        setServerError("");
-        setSuccess("");
-      }, 5000);
-      setIsSaving(false);
+    const payload = {
+      collection: "birds",
+      action: "update",
+      id: bird.id,
+      data: {
+        branchId: bird.branchId,
+        typeId: bird.typeId,
+        quantity: Number(formData.quantity),
+        age: Number(formData.age),
+      },
     }
+    
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Information updated successfully!");
+      },
+      onError: err => {
+        setServerError(err.message);
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setShake(false);
+          setErrors({});
+          setServerError("");
+          setSuccess("");
+        }, 5000);
+      }
+    });
   };
 
   /* ================= RENDER ================= */
@@ -192,14 +193,9 @@ function UpdateBird({birdData, brancheData, typeData }) {
       {success && <p className="success-text">{success}</p>}
       {serverError && <p className="error-text">{serverError}</p>}
 
-      {hasBird === false && formData.branchId && formData.typeId && (
-        <p className="error-text">No bird found for selected branch and type.</p>
-      )}
 
       <form onSubmit={handleSubmit}>
         <h2>Update a Bird</h2>
-        {/* ===== BRANCH & TYPE ===== */}
-        {/* <div className="inputs"> */}
           <div className="norrechel-grouped-inputs">
             <div>
               <label>Branch</label>
@@ -234,7 +230,7 @@ function UpdateBird({birdData, brancheData, typeData }) {
 
             <div>
               <label className={errors.typeId ? "error-text" : ""}>
-                Bird Type
+                Type
               </label>
               <select
                 name="typeId"
@@ -254,29 +250,8 @@ function UpdateBird({birdData, brancheData, typeData }) {
               )}
             </div>
           </div>
-        {/* </div> */}
-
-        {/* ===== QUANTITY & AGE ===== */}
-        {/* <div className="inputs"> */}
+          
           <div className="norrechel-grouped-inputs">
-            <div>
-              <label className={errors.quantity ? "error-text" : ""}>
-                Quantity
-              </label>
-              <input
-                type="number"
-                name="quantity"
-                min={0}
-                value={formData.quantity}
-                onChange={handleChange}
-                className={errors.quantity ? "input-error" : ""}
-                disabled={!hasBird}
-              />
-              {errors.quantity && (
-                <small className="error-text">{errors.quantity}</small>
-              )}
-            </div>
-
             <div>
               <div>                
                 <label className={errors.age ? "error-text" : ""}>
@@ -298,8 +273,25 @@ function UpdateBird({birdData, brancheData, typeData }) {
               </div>
 
             </div>
+            <div>
+              <label className={errors.quantity ? "error-text" : ""}>
+                Quantity
+              </label>
+              <input
+                type="number"
+                name="quantity"
+                min={0}
+                value={formData.quantity}
+                onChange={handleChange}
+                className={errors.quantity ? "input-error" : ""}
+                disabled={!hasBird}
+              />
+              {errors.quantity && (
+                <small className="error-text">{errors.quantity}</small>
+              )}
+            </div>
+
           </div>
-        {/* </div> */}
 
         {/* ===== SUBMIT BUTTON ===== */}
         <button

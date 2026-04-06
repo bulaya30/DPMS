@@ -115,9 +115,9 @@ async function addFeed(user, data) {
 
 
 /* ======================================================
-   UPDATE FEED STOCK (CORRECTION → INVENTORY AUTO-CALC)
+ UPDATE FEED STOCK (CORRECTION → INVENTORY AUTO-CALC)
   ====================================================== */
-  async function updateFeed(user, id, updates) {
+async function updateFeed(user, id, updates) {
   if (!id || !updates)
     throw new Error("Invalid feed data");
 
@@ -173,17 +173,67 @@ async function deleteFeed(user, id) {
     active: false,
     deletedAt: new Date(),
   });
-
-  await stockController.syncStock({
+  await stockController.deactivateStock({
     user,
-    branchId: existing.branchId,
-    item: "feed",
-    delta: -existing.quantity,
-    reason: "Feed deleted",
+    itemId: existing.id,
   });
 
   return { success: true };
 }
+
+async function restoreFeed(user, id) {
+  if (!id) throw new Error("Invalid feed id");
+
+  if (!["admin", "manager"].includes(user.role))
+    throw new Error("Permission denied");
+
+  const feed = await getFeeds(user, 'id', id);
+  const existing = feed[0];
+
+  if (!existing) throw new Error("Feed not found");
+
+  await db.update(collectionName, id, {
+    active: true,
+    restoredAt: new Date(),
+  });
+  await stockController.activateStock({
+    user,
+    itemId: existing.id,
+  });
+
+  return { success: true };
+}
+
+
+  async function stock(user, data) {
+
+    if(!user) throw new Error("No user authenticated");
+    if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+
+    if(!data) throw new Error("Invalid data");
+
+    const { branchId, typeId, name, quantity } = data;
+
+    if(!branchId || !quantity || !name) throw new Error("Missing required fields");
+
+    const feed = await getFeeds(user, 'typeId', typeId);
+
+    const existing = feed.find(f => f.name === name);
+    if (!existing) throw new Error("Feed not found");
+
+    await stockController.updateStock({
+      user,
+      branchId: existing.branchId,
+      typeId: existing.typeId,
+      item: "feed",
+      itemId: existing.id,
+      newQuantity: Number(existing.quantity) + Number(quantity),
+      reason: "New stock",
+    });
+
+    return { success: true };
+    
+  }
 
 
   async function process(payload) {
@@ -207,6 +257,12 @@ async function deleteFeed(user, id) {
     case "delete":
       return deleteFeed(user, id);
 
+    case "restore":
+      return restoreFeed(user, id);
+
+    case "stock":
+      return stock(user, data);
+
     default:
       throw new Error("Unknown action");
   }
@@ -215,5 +271,6 @@ async function deleteFeed(user, id) {
 
   export default {
     getFeeds,
-    process
+    process,
+
   };

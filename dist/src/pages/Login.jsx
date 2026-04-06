@@ -5,6 +5,7 @@ import { checkMail, checkPassword } from "../validations/validate";
 import { ThemeContext } from "../components/ThemeContext";
 import { Sun, Moon, Eye, EyeOff } from "lucide-react";
 import Header from "../components/Header"
+import useAuthStore from "../store/authStore";
 
 function Login() {
   const navigate = useNavigate();
@@ -35,40 +36,38 @@ function Login() {
   };
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    if (isSaving) return;
+  e.preventDefault();
+  if (isSaving) return;
 
-    const newErrors = {};
-    Object.keys(formData).forEach(key => {
-      const error = validateField(key, formData[key]);
-      if (error) newErrors[key] = error;
-    });
+  const newErrors = {};
+  Object.keys(formData).forEach(key => {
+    const error = validateField(key, formData[key]);
+    if (error) newErrors[key] = error;
+  });
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      setShake(true);
-      return;
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    setShake(true);
+    return;
+  }
+
+  try {
+    setIsSaving(true);
+    setServerError("");
+    const res = await login(formData.email, formData.password);
+    if (res.token) {
+      window.location.replace("/");
     }
-
-    try {
-      setIsSaving(true);
-      setServerError("");
-
-      const res = await login(formData.email, formData.password);
-      if (res.token) {
-        localStorage.setItem("token", res.token);
-        window.location.replace("/");
-      }
-    } catch (err) {
-      setServerError(err.message || "Login failed");
-      setShake(true);
-    } finally {
-      setTimeout(() => {
-        setIsSaving(false);
-        setShake(false);
-      }, 600);
-    }
-  };
+  } catch (err) {
+    setServerError(err.message || "Login failed");
+    setShake(true);
+  } finally {
+    setTimeout(() => {
+      setIsSaving(false);
+      setShake(false);
+    }, 600);
+  }
+};
 
   return (
     <>

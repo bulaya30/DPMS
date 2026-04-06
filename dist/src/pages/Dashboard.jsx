@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useMemo, useContext } from "react";
 import { ThemeContext } from "../components/ThemeContext";
 import { getInventories, getBranches, getTypes, getBirds } from "../api";
+import { useGetBirds } from "../hooks/useBirds";
+import { useGetInventories } from "../hooks/useInventories";
+import { useGetBranches } from "../hooks/useBranches";
+import { useGetTypes } from "../hooks/useTypes";
 
 import KPIStatCard from "../components/KPIStatCard";
 import AlertsPanel from "../components/Models/AlertPanel";
@@ -45,6 +49,12 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const { data: birdsData } = useGetBirds();
+  const { data: inventoriesData } = useGetInventories();
+  const { data: branchesData } = useGetBranches();
+  const { data: typesData } = useGetTypes();
+
 
   /* ================= FETCH DATA ================= */
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { processData } from "../../../api";
+import { useProcessUser } from "../../../hooks/useUsers";
 import {
   checkPhone,
   checkName,
@@ -8,8 +8,9 @@ import {
 } from "../../../validations/validate";
 import { FaSave, FaEye, FaEyeSlash } from "react-icons/fa";
 
-function AddEmployee({ branchData = [], onSuccess }) {
-  const [branches, setBranches] = useState([]);
+function AddEmployee({ branchData = [] }) {
+  const {mutate, isPending: isSaving } = useProcessUser();
+  const branches = branchData;
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -27,17 +28,8 @@ function AddEmployee({ branchData = [], onSuccess }) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
-  /* ================= LOAD BRANCHES ================= */
-  useEffect(() => {
-    if (Array.isArray(branchData) && branchData.length > 0) {
-      setBranches(branchData);
-    } else {
-      setBranches([]);
-    }
-  }, [branchData]);
-
+  
   /* ================= VALIDATION ================= */
   const validateField = (name, value) => {
     switch (name) {
@@ -96,45 +88,42 @@ function AddEmployee({ branchData = [], onSuccess }) {
       setShake(true);
       return;
     }
+    const payload = {
+      collection: "users",
+      action: "add",
+      data: { ...formData },
+    };
+    mutate(payload, {
+      onSuccess: () =>{
+        setSuccess("Employee added successfully!");
+    
+        setFormData({
+          branchId: "",
+          firstName: "",
+          lastName: "",
+          contact: "",
+          email: "",
+          gender: "",
+          role: "",
+          password: "",
+        });
+    
+        setShowPassword(false);
+      },
+      onError: error => {
+        setServerError(error?.message || "Something went wrong");
 
-    try {
-      setIsSaving(true);
-
-      const payload = {
-        collection: "users",
-        action: "add",
-        data: { ...formData },
-      };
-
-      await processData(payload);
-
-      setSuccess("Employee added successfully!");
-
-      setFormData({
-        branchId: "",
-        firstName: "",
-        lastName: "",
-        contact: "",
-        email: "",
-        gender: "",
-        role: "",
-        password: "",
-      });
-
-      setShowPassword(false);
-
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      setServerError(err?.message || "Something went wrong");
-    } finally {
-      setTimeout(() => {
-        setIsSaving(false);
-        setShake(false);
-        setErrors({});
-        setServerError("");
-        setSuccess("");
-      }, 5000);
-    }
+      }, 
+      onSettled: () =>{
+        setTimeout(() => {
+          setShake(false);
+          setErrors({});
+          setServerError("");
+          setSuccess("");
+        }, 5000);
+      }
+    });
+    
   };
 
   return (

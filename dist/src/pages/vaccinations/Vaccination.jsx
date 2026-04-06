@@ -1,13 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 import KPIStatCard from "../../components/KPIStatCard";
-import { getBirds, getTypes, processData } from "../../api";
 import { FaSyringe } from "react-icons/fa";
 import AlertModal from "../../components/Models/AlertModal";
-import { Permission } from "../../utils/permission";
+import { useProcessVaccination } from "../../hooks/useVaccination";
+import {useGetBirds} from "../../hooks/useBirds";
+import useAuthStore from "../../store/authStore";
+import { useGetTypes } from "../../hooks/useTypes";
 
-const user = JSON.parse(localStorage.getItem("user"));
-const userRole = user?.role;
-const canManage = Permission(userRole);
 
 /* ================= DATE HELPERS ================= */
 
@@ -18,10 +21,11 @@ const toDate = d => {
 };
 
 const normalizeDate = d => {
-  const date = toDate(d);
-  if (!date || isNaN(date)) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
+  if (!d) return null;
+  if (typeof d?.toDate === "function") return d.toDate();
+  if (typeof d === "object" && "_seconds" in d) return new Date(d._seconds * 1000);
+  if (typeof d === "string") return new Date(d);
+  return new Date(d);
 };
 
 const isDueToday = dueDate => {
@@ -50,14 +54,16 @@ const normalizeToArray = input => {
 /* ================= COMPONENT ================= */
 
 function Vaccinations() {
-  const [birds, setBirds] = useState([]);
-  const [birdTypes, setBirdTypes] = useState([]);
+  const { data: types = [], isLoading: typesLoading, error: typesError } = useGetTypes;
+  const {data: birds = [], isLoading: birdsLoading, error: birdsError} = useGetBirds();
+  const { mutate, isLoading: isSaving } = useProcessVaccination();
+  const user = useAuthStore(state => state.user);
+  const canManage = user.role === 'manager' || user.role === 'admin';
+
 
   const [birdTypeFilter, setBirdTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const [showMessage, setShowMessage] = useState(false);
   const [messageData, setMessageData] = useState({ title: "", message: "" });
@@ -66,41 +72,13 @@ function Vaccinations() {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const [isSaving, setIsSaving] = useState(false);
-
-  /* ================= FETCH ================= */
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const [typeData, birdData] = await Promise.all([
-          getTypes(),
-          getBirds()
-        ]);
-
-        setBirdTypes(normalizeToArray(typeData));
-        setBirds(normalizeToArray(birdData));
-      } catch (err) {
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const reloadData = async () => {
-    const birdData = await getBirds();
-    setBirds(normalizeToArray(birdData));
-  };
 
   /* ================= TYPE MAP ================= */
-
   const birdTypeMap = useMemo(() => {
     const map = {};
-    birdTypes.forEach(t => (map[t.id] = t.name));
+    types.forEach(t => (map[t.id] = t.name));
     return map;
-  }, [birdTypes]);
+  }, [types]);
 
   /* ================= ROWS ================= */
 
@@ -130,7 +108,33 @@ function Vaccinations() {
       return 0;
     });
   }, [birds, birdTypeFilter, statusFilter, birdTypeMap]);
+  const exportToExcel = () => {
+    const dataToExport = birds.map((row, index) => {
+      console.log(row.date);
+      return {
+        "#": index + 1,
+        "Branch": row.branchName,
+        "Type": row.typeName,
+        "Age": row.age,
+        "Vaccine": row.nextVaccination?.vaccine || "-",
+        "Due date": row.nextVaccination?.dueDate
+          ? normalizeDate(row.nextVaccination?.dueDate)?.toLocaleDateString()
+          : "-",
+        "Days left": row.nextVaccination?.daysLeft || "-",
+        "Status": row.nextVaccination?.status || "-",
+        "Date": normalizeDate(row.date).toLocaleDateString(),
+      }
+    });
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vaccination Report");
 
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Vaccination_Report.xlsx`);
+  }
   /* ================= TOOLTIP POSITION ================= */
 
   const getTooltipPosition = () => {
@@ -177,40 +181,32 @@ function Vaccinations() {
   /* ================= COMPLETE ================= */
 
   const handleComplete = async row => {
-    if (!row.nextVaccination || isSaving) return;
-
-    try {
-      setIsSaving(true);
-      // await processData({
-      //   collection: "schedules",
-      //   action: "completeVaccination",
-      //   data: {
-      //     birdBatch: birds.find(b => b.id === row.id),
-      //     nextVaccination: row.nextVaccination
-      //   }
-      // });
-
-      setMessageData({
-        title: "Success",
-        message: "Vaccination completed successfully"
-      });
-
-      await reloadData();
-    } catch (err) {
-      setMessageData({
-        title: "Failure",
-        message: err?.message || "Failed to complete vaccination"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-
-    setShowMessage(true);
-  };
-
-  /* ================= RENDER ================= */
-
-  if (loading) {
+    if (!row.nextVaccination) return;
+    mutate({
+      collection: "schedules",
+      action: "completeVaccination",
+      data: {
+        birdBatch: birds.find(b => b.id === row.id),
+        nextVaccination: row.nextVaccination
+      }},
+      {
+        onSuccess: () => {
+          setMessageData({
+            title: "Success",
+            message: "Vaccination completed successfully"
+          });
+        },
+        onError: err => {
+          setMessageData({
+            title: "Failure",
+            message: err?.message || "Failed to complete vaccination"
+          });
+        },
+      })
+      setShowMessage(true);
+    };
+  
+  if (birdsLoading || typesLoading) {
     return (
       <div className="loading-wrapper">
         <div className="spinner"></div>
@@ -218,11 +214,12 @@ function Vaccinations() {
       </div>
     );
   }
-
-  if (error) return <div className="error-message">{error}</div>;
-
+  
+  if( birdsError || typesError) 
+    return <div className="error-message">{birdsError.message || typesError.message}</div>;
+  
+  /* ================= RENDER ================= */
   return (
-    <>
       <div className="dashboard-page">
         <div className="dashboard-hero">
           <h1>Vaccinations</h1>
@@ -233,7 +230,7 @@ function Vaccinations() {
         <div className="dashboard-filters">
           <select value={birdTypeFilter} onChange={e => setBirdTypeFilter(e.target.value)}>
             <option value="all">All Types</option>
-            {birdTypes.map(t => (
+            {types.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
@@ -256,6 +253,11 @@ function Vaccinations() {
 
         {/* ===== TABLE ===== */}
         <div className="norrechel-table-wrapper">
+          <div className="ispm-print-container">
+            <button onClick={exportToExcel} className="ispm-btn">
+              Export to Excel
+            </button>
+          </div>
           <h3>Vaccination Schedule</h3>
 
           <table className="norrechel-table">
@@ -302,7 +304,7 @@ function Vaccinations() {
                       {r.status !== "COMPLETED" && (
                         <button
                           className="table-btn norrechel-success-btn"
-                          // disabled={r.status === "UPCOMING"}
+                          disabled={r.status === "UPCOMING"}
                           onClick={() => handleComplete(r)}
                         >
                           {isSaving && <span className="spinner" />}
@@ -340,7 +342,6 @@ function Vaccinations() {
           onClose={() => setShowMessage(false)}
         />
       </div>
-    </>
   );
 }
 

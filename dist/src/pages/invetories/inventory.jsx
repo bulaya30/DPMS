@@ -1,8 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { getInventories, getBranches } from "../../api";
 
-const isAdmin = true;
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+import { useSearchParams } from "react-router-dom";
+import { useGetBranches } from "../../hooks/useBranches";
+import { useGetInventories } from "../../hooks/useInventories";
+import useAuthStore from "../../store/authStore";
+
 
 /* ================= TABS ================= */
 const TABS = [
@@ -35,9 +40,11 @@ const today = () => new Date().toISOString().split("T")[0];
 const currentMonth = () => today().slice(0, 7);
 
 export default function Inventories() {
-  const [branches, setBranches] = useState([]);
-  const [inventories, setInventories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: branches = [], isLoading: isLoadingBranches, error: errorBranches } = useGetBranches();
+  const { data: inventories = [], isLoading: isLoadingInventories, error: errorInventories } = useGetInventories();
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user.role === "admin";
+
   const [error, setError] = useState(null);
 
   const [activeTab, setActiveTab] = useState("bird");
@@ -51,24 +58,7 @@ export default function Inventories() {
 
   const [localMode, setLocalMode] = useState(urlMode);
 
-  /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [b, i] = await Promise.all([getBranches(), getInventories()]);
-        setBranches(normalizeToArray(b));
-        setInventories(normalizeToArray(i));
-      } catch (err) {
-        console.error(err);
-        setError("Failed to fetch inventories. Check your Internet connection and try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  
 
   /* ================= FILTER UPDATE ================= */
   const updateFilter = (key, val) => {
@@ -126,140 +116,162 @@ export default function Inventories() {
 
     return data;
   }, [inventories, branchFilter, activeTab, localMode, value]);
+  /* ================= EXPORT ================= */
+  const exportToExcel = () => {
+    const dataToExport = inventories.map((row, index) => ({
+      "#": index + 1,
+      "Item": row.item,
+      "Branch": row.branchName,
+      "Type": row.typeName ?? "-",
+      "Opening": row.openingStock,
+      "Added": row.quantityAdded,
+      "Lost": row.quantityLost ?? "-",
+      "Sold": row.quantitySold ?? "-",
+      "Consumed": row.quantityConsumed ?? "-",
+      "Closing": row.closingStock,
+      "Date": formatDate(row.date),
+    }))
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Report");
 
-
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Inventory_Report.xlsx`);
+  }
+  
   const inputType = localMode === "date" ? "date" : localMode === "month" ? "month" : "text";
   const showConsumed = activeTab === "feed";
 
-
-  return (
-    <>
-      {loading && (
-        <div className="loading-wrapper">
+  if(isLoadingBranches || isLoadingInventories) {
+    return (
+      <div className="loading-wrapper">
           <div className="spinner"></div>
           <span>Loading Data...</span>
         </div>
-      )}
+    )
+  }
 
-      {error && <div className="error-message">{error}</div>}
+  if(errorBranches || errorInventories) {
+    return (
+      <div className="loading-wrapper">
+        <span>{errorBranches?.message || errorInventories?.message}</span>
+      </div>
+    )
+  }
 
-      {!loading && !error && (
-        <div className={`dashboard-page `}>
-          {/* ================= HERO ================= */}
-          <div className="dashboard-hero">
-            <h1>Inventories</h1>
-            <p>Ledger Performance</p>
-          </div>
-          {/* ================= FILTERS ================= */}
-          <div className="dashboard-filters">
-            {branches.length > 1 && (
-              // <div className="filter-card">
-              // <h4>Branches</h4>
-              <select value={branchFilter} onChange={e => updateFilter("branch", e.target.value)}>
-                <option value="all">All branches</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-              // </div>
-            )}
-
-            {/* <div className="filter-card">
-              <h4>Filter by</h4> */}
-              <div className="mode-switch">
-                {["date", "month"].map(m => (
-                  <label key={m} className={localMode === m ? "active" : ""}>
-                    <input
-                      type="radio"
-                      checked={localMode === m}
-                      onChange={() => switchMode(m)}
-                    />
-                    <span className="radio-label">
-                      {m.charAt(0).toUpperCase() + m.slice(1)}
-                    </span>
-                  </label>
-                ))}
-              {/* </div> */}
-            </div>
-          </div>
-          {/* ================= TABS ================= */}
-          <div className="stock-tabs">
-            {TABS.map(tab => (
-              <button
-                key={tab.key}
-                className={`stock-tab ${activeTab === tab.key ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-              </button>
+  return (
+    <div className={`dashboard-page `}>
+      {/* ================= HERO ================= */}
+      <div className="dashboard-hero">
+        <h1>Inventories</h1>
+        <p>Ledger Performance</p>
+      </div>
+      {/* ================= FILTERS ================= */}
+      <div className="dashboard-filters">
+        {branches.length > 1 && (
+          <select value={branchFilter} onChange={e => updateFilter("branch", e.target.value)}>
+            <option value="all">All branches</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
-          </div>
-          {/* ================= SMART INPUT ================= */}
-          {localMode && (
-            <div className="smart-input-wrapper">
+          </select>
+        )}
+        <div className="mode-switch">
+          {["date", "month"].map(m => (
+            <label key={m} className={localMode === m ? "active" : ""}>
               <input
-                ref={inputRef}
-                className={`smart-input mode-${localMode}`}
-                type={inputType}
-                value={value}
-                onChange={e => updateFilter("value", e.target.value)}
-                onClick={() => inputRef.current?.showPicker?.()}
+                type="radio"
+                checked={localMode === m}
+                onChange={() => switchMode(m)}
               />
-
-              {isAdmin && value && (
-                <div className="badges">
-                  <span className="badge">
-                    {localMode === "date" ? "Date Filter Active" : "Month Filter Active"}
-                  </span>
-                </div>
-              )}
+              <span className="radio-label">
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+      {/* ================= TABS ================= */}
+      <div className="stock-tabs">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            className={`stock-tab ${activeTab === tab.key ? "active" : ""}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {/* ================= SMART INPUT ================= */}
+      {localMode && (
+        <div className="smart-input-wrapper">
+          <input
+            ref={inputRef}
+            className={`smart-input mode-${localMode}`}
+            type={inputType}
+            value={value}
+            onChange={e => updateFilter("value", e.target.value)}
+            onClick={() => inputRef.current?.showPicker?.()}
+          />
+          {isAdmin && value && (
+            <div className="badges">
+              <span className="badge">
+                {localMode === "date" ? "Date Filter Active" : "Month Filter Active"}
+              </span>
             </div>
           )}
-          {/* ================= TABLE ================= */}
-          <div className="norrechel-table-wrapper">
-            <table className="norrechel-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Branch</th>
-                  <th>Type</th>
-                  <th>Opening</th>
-                  <th>Added</th>
-                  {!showConsumed && <th>Sold</th>}
-                  {showConsumed && <th>Consumed</th>}
-                  <th>Closing</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredInventories.length === 0 ? (
-                  <tr>
-                    <td colSpan={showConsumed ? 9 : 8} style={{ textAlign: "center" }}>
-                      No inventory found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInventories.map((inv, i) => (
-                    <tr key={inv.id} className="table-row" style={{ animationDelay: `${i * 40}ms` }}>
-                      <td>{i + 1}</td>
-                      <td>{inv.branchName}</td>
-                      <td>{inv.typeName}</td>
-                      <td>{inv.openingStock}</td>
-                      <td>{inv.quantityAdded}</td>
-                      {!showConsumed && <td>{inv.quantitySold}</td>}
-                      {showConsumed && <td>{inv.quantityConsumed}</td>}
-                      <td>{inv.closingStock}</td>
-                      <td>{formatDate(inv.date)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-
-            </table>
-          </div>
         </div>
       )}
-    </>
+      {/* ================= TABLE ================= */}
+      <div className="norrechel-table-wrapper">
+        <div className="ispm-print-container">
+          <button onClick={exportToExcel} className="ispm-btn">
+            Export to Excel
+          </button>
+        </div>
+        <table className="norrechel-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Branch</th>
+              <th>Type</th>
+              <th>Opening</th>
+              <th>Added</th>
+              {!showConsumed && <th>Sold</th>}
+              {showConsumed && <th>Consumed</th>}
+              <th>Closing</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredInventories.length === 0 ? (
+              <tr>
+                <td colSpan={showConsumed ? 9 : 8} style={{ textAlign: "center" }}>
+                  No inventory found
+                </td>
+              </tr>
+            ) : (
+              filteredInventories.map((inv, i) => (
+                <tr key={inv.id} className="table-row" style={{ animationDelay: `${i * 40}ms` }}>
+                  <td>{i + 1}</td>
+                  <td>{inv.branchName}</td>
+                  <td>{inv.typeName}</td>
+                  <td>{inv.openingStock}</td>
+                  <td>{inv.quantityAdded}</td>
+                  {!showConsumed && <td>{inv.quantitySold}</td>}
+                  {showConsumed && <td>{inv.quantityConsumed}</td>}
+                  <td>{inv.closingStock}</td>
+                  <td>{formatDate(inv.date)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

@@ -178,7 +178,53 @@ async function makeInventory(item, date = new Date()) {
   return { id: ref.id, ...record };
 }
 
+async function deactivateInventory(data) {
+
+  const { user, itemId } = data;
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+  
+  if(!itemId) throw new Error("Missing required fields");
+
+  const inventory = await getInventories(user, "itemId", itemId);
+  if(!inventory || inventory.length === 0) throw new Error("Inventory not found");
+  try {
+    await db.update(collectionName, inventory[0].id, {
+      active: false,
+      deletedAt: null,
+      updatedAt: new Date(),
+    });
+    return { success: true };
+  } catch (error) {
+    throw new Error(error);
+  }  
+  
+}
+
+async function activateInventory(data) {
+  const { user, itemId } = data;
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+  
+  if(!itemId) throw new Error("Missing required fields");
+
+  const inventory = await getInventories(user, "itemId", itemId);
+  if(!inventory || inventory.length === 0) throw new Error("Inventory not found");
+  try {
+    await db.update(collectionName, inventory[0].id, {
+      active: true,
+      deletedAt: null,
+      updatedAt: new Date(),
+    });
+    return { success: true };
+  } catch (error) {
+    throw new Error(error);
+  }  
+}
+
 export default {
   getInventories,
-  makeInventory
+  makeInventory,
+  deactivateInventory,
+  activateInventory,
 }

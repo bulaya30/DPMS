@@ -274,6 +274,52 @@ async function getNextVaccination(birdBatch, template, history = []) {
   return null;
 }
 
+async function deleteSchedule(user, id) {
+  if(!user || !id) throw new Error("No data provided");
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin") throw new Error("Permission denied");
+
+  const schedule = await getSchedules("id", id);
+  if(!schedule || schedule.length === 0) throw new Error("Schedule not found");
+
+  try {
+    
+    await db.update(collectionName, id, {
+      active: false,
+      deletedAt: new Date(),
+      updatedAt: new Date()
+    });
+    return { success: true };
+  } catch (error) {
+    throw new Error(error);
+  }
+  
+}
+
+async function restoreSchedule(user, id) {
+  if(!user || !id) throw new Error("No data provided");
+ 
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin") throw new Error("Permission denied");
+
+  const schedule = await getSchedules("id", id);
+  if(!schedule || schedule.length === 0) throw new Error("Schedule not found");
+
+  try {
+    await db.update(collectionName, id, {
+      active: true,
+      deletedAt: null,
+      updatedAt: new Date()
+    });
+    return { success: true };
+  } catch (error) {
+    throw new Error(error);
+  } 
+  
+}
+
 /* ===================== PROCESS (ADMIN ONLY) ===================== */
 async function process(payload) {
   if (!payload) throw new Error("Invalid request");
@@ -287,7 +333,9 @@ async function process(payload) {
     case "update":
       return await updateSchedule(user, id, data);
     case "delete":
-      return await deleteTemplate(id);
+      return await deleteSchedule(user, id);
+    case "restore":
+      return await restoreSchedule(user, id);
     case "completeVaccination":
       return await vaccinationController.completeVaccination(
         data.birdBatch,

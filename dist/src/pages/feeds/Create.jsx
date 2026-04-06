@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { checkName, checkNumber } from "../../validations/validate";
-import { getBranches, processData } from "../../api";
-import { FaPlus, FaSave } from "react-icons/fa";
+import { useProcessFeed } from "../../hooks/useFeeds";
+import { FaSave } from "react-icons/fa";
 
-function AddFeed({branchData, onSuccess}) {
-  const [branches, setBranches] = useState([]);
+function AddFeed({branchData}) {
+  const { mutate, isPending: isSaving } = useProcessFeed();
+ const branches = branchData || [];
   
 
   const [formData, setFormData] = useState({
@@ -18,14 +19,6 @@ function AddFeed({branchData, onSuccess}) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false)
-
-  useEffect(() => {
-    const loadData = async () => {
-      setBranches(branchData);
-    };
-    loadData();
-  }, [branchData]);
 
   useEffect(() => {
     if(branches.length === 0) return;
@@ -76,9 +69,6 @@ function AddFeed({branchData, onSuccess}) {
   const handleSubmit = async e => {
     e.preventDefault();
     if(isSaving) return;
-    setServerError('');
-    setShake(false);
-    setTimeout(() => setShake(true), setServerError(''), 0);
     let newErrors = {};
     Object.keys(formData).forEach(key => {
       const error = validateField(key, formData[key]);
@@ -90,29 +80,29 @@ function AddFeed({branchData, onSuccess}) {
       setShake(true);
       return;
     }
-
-    try {
-      setIsSaving(true)
-      const data = {
-        collection: 'feeds',
-        action: 'add',
-        data: {
-          ...formData
-        }
+    const payload = {
+      collection: "feeds",
+      action: "add",
+      data: {
+        ...formData
       }
-      await processData(data);
-      setSuccess("Feed added successfully!");
-      setFormData(prev => ({ ...prev, quantity: "", name:"" }));
-      onSuccess?.()
-    } catch (err) {
-      setServerError( err.message);
-    } finally {
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-      }, 5000);
-      setIsSaving(false);
-    }
+    };
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Feed added successfully!");
+        setFormData(prev => ({ ...prev, quantity: "", name:"" }));
+      },
+      onError: err => {
+        setServerError( err.message);
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    });
+
   };
 
 

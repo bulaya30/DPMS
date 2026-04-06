@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { getTypes, getVaccinationSchedules, processData } from "../../api";
-import { checkName, checkNumber } from "../../validations/validate";
+import React, { useState, useEffect, act } from "react";
+import { useGetTypes } from "../../hooks/useTypes";
+import { useGetSchedules, useProcessSchedule } from "../../hooks/useSchedule";
+
 import AddSchedule from "./CreateSchedule";
 import UpdateSchedule from "./Update";
 
+import ConfirmModal from '../../components/Models/Confirm';
+import AlertModal from '../../components/Models/AlertModal';
+
 function VaccinationSchedule() {
-  const [birdTypes, setBirdTypes] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const {data: types = [], isLoading: typesLoading, error: typesError} = useGetTypes();
+  const {data: schedules = [], isLoading: schedulesLoading, error: schedulesError} = useGetSchedules();
+  const {mutate, isLoading: isSaving } = useProcessSchedule();
+
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     birdType: "",
@@ -17,151 +22,144 @@ function VaccinationSchedule() {
   });
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
-  const [updatingId, setUpdatingId] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState(null);
 
-  /* ================= FETCH DATA ================= */
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [scheduleData, typeData] = await Promise.all([
-        getVaccinationSchedules(), getTypes()
-      ]);
-      setSchedules(scheduleData || []);
-      setBirdTypes(typeData || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData()
-  }, []);
-  // console.log(schedules)
-
-    const refreshData = async () => {
-      const data = await getVaccinationSchedules();
-      setSchedules(data || []);
-    };
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageData, setMessageData] = useState({ title: "", message: "" });
 
 
   /* ================= DELETE ================= */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this schedule?")) return;
-    setDeletingId(id);
-    console.log('Deleting data...')
-    // try {
-    //   await deleteVaccinationSchedule(id);
-    //   fetchSchedules();
-    // } catch (error) {
-    //   processData(error);
-    // } finally {
-    //   setDeletingId(null);
-    // }
+  const handleDelete = async (schedule) => {
+    if (showConfirm || scheduleToDelete) return;
+    setScheduleToDelete(schedule);
+    setShowConfirm(true);    
   };
 
-  /* ================= EDIT ================= */
-  const handleEdit = (schedule) => {
-    setFormData({ ...schedule });
-    setUpdatingId(schedule.id);
+  const confirmDelete = async () => {
+    if (!scheduleToDelete) return;
+    const { id, active, typeId } = scheduleToDelete;
+    mutate({ 
+      collection: "schedules", 
+      action: active ? "delete" : "restore", 
+      id,
+      data: { active: !active, typeId }
+    }, {
+      onSuccess: () => {
+        setMessageData({ title: "Success", message: `Schedule ${active ? "deleted" : "restored"} successfully.` });
+        setShowMessage(true);
+      },
+      onError: err => {
+        setMessageData({ title: "Error", message: `${err.message}` });
+        setShowMessage(true);
+      },
+
+      onSettled: () => {
+        setShowConfirm(false);
+        setScheduleToDelete(null);
+      }
+    });
+    
   };
+
+
+  if(typesLoading || schedulesLoading) {
+    return (
+      <div className="loading-wrapper">
+        <div className="spinner"></div>
+        <span>Loading data...</span>
+      </div>
+    )
+  }
+  if(typesError || schedulesError) {
+    return (
+      <div className="error-message">
+       {typesError?.message || schedulesError?.message}
+      </div>
+    )
+  }
 
   return (
-    <>
-       {loading && (
-        <div className="loading-wrapper">
-          <div className="spinner"></div>
-          <span>Loading data...</span>
+    <div className={`dashboard-page `}>
+      {/* ================= HERO ================= */}
+      <div className="dashboard-hero">
+        <h1>Schedules</h1>
+        <p>Schedule Management</p>
+      </div>
+      {success && <p className="success">{success}</p>}
+      <div className="crud-container">
+        {/* ================= ADD BRANCH ================= */}
+        <div className="add-form-container">
+          <AddSchedule typeData={types}/>
+        </div>    
+        {/* ================= UPDATE BRANCH ================= */}
+        <div className="update-form-container">
+          <UpdateSchedule 
+            scheduleData={schedules} 
+            typeData={types}
+          />
         </div>
-      )}
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
-      {!loading && !error && (
-        <div className={`dashboard-page `}>
-          {/* ================= HERO ================= */}
-          <div className="dashboard-hero">
-            <h1>Schedules</h1>
-            <p>Schedule Management</p>
-          </div>
-          {/* <div> */}
-              {success && <p className="success">{success}</p>}
-              <div className="crud-container">
-                  {/* ================= ADD BRANCH ================= */}
-                  <div className="add-form-container">
-                      <AddSchedule 
-                        onAcallback={refreshData}
-                      />
-                  </div>
-              
-                  {/* ================= UPDATE BRANCH ================= */}
-                  <div className="update-form-container">
-                      <UpdateSchedule 
-                        schedules={schedules}
-                        onSuccess={refreshData}
+      </div>
 
-                      />
-                  </div>
-              </div>
+        {/* List of schedules */}
+        <div className="settings-card-wrapper">
+          <h3>Schedule Details</h3>
 
-              {/* List of schedules */}
-              <div className="settings-card-wrapper">
-                <h3>Schedule Details</h3>
-
-                <div className="settings-card-grid">
-                  {schedules.map((schedule, index) => (
-                    <div key={schedule.id} className="settings-card">
+          <div className="settings-card-grid">
+            {schedules.map((schedule, index) => (
+              <div key={schedule.id} className="settings-card">
                       
-                      {/* Header */}
-                      <div className="settings-card-header">
-                        <div>
-                          <h4>{schedule.name}</h4>
-                          <p className="muted-text">{schedule.typeName}</p>
-                        </div>
-
-                        <span className={`status-pill ${schedule.active ? "active" : "inactive"}`}>
-                          {schedule.active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-
-                      {/* Schedule Timeline */}
-                      <div className="settings-card-body">
-                        <h5>Vaccination Timeline</h5>
-
-                        <div className="timeline-list">
-                          {schedule.schedule.map((s, i) => (
-                            <div key={i} className="timeline-item">
-                              <span className="timeline-day">Day {s.ageInDays}</span>
-                              <span className="timeline-vaccine">{s.vaccine}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="settings-card-actions">
-                        <button
-                          className="table-btn delete-btn"
-                          onClick={() => handleDelete(schedule.id)}
-                          disabled={deletingId === schedule.id}
-                        >
-                          {deletingId === schedule.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-
+              {/* Header */}
+              <div className="settings-card-header">
+                <div>
+                  <h4>{schedule.name}</h4>
+                  <p className="muted-text">{schedule.typeName}</p>
+                </div>
+                <span className={`status-pill ${schedule.active ? "active" : "inactive"}`}>
+                  {schedule.active ? "Active" : "Inactive"}
+                </span>
+              </div>
+              {/* Schedule Timeline */}
+              <div className="settings-card-body">
+                <h5>Vaccination Timeline</h5>
+                <div className="timeline-list">
+                  {schedule.schedule.map((s, i) => (
+                    <div key={i} className="timeline-item">
+                      <span className="timeline-vaccine">{s.vaccine}</span>
+                      <span className="timeline-day">Day {s.ageInDays}</span>
                     </div>
                   ))}
                 </div>
               </div>
-          {/* </div> */}
+              {/* Actions */}
+              <div className="settings-card-actions">
+                <button
+                  className="table-btn delete-btn"
+                  onClick={() => handleDelete(schedule)}
+                  disabled={isSaving}
+                >
+                  {schedule.active ? "Delete" : "Restore"}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      )}
-    </>
+      </div>
+      <ConfirmModal
+        isOpen={showConfirm}
+        title="Confirm"
+        message={`Are you sure you want to ${scheduleToDelete?.active ? "delete" : "restore"} ${scheduleToDelete?.name}?`}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowConfirm(false)}
+      />
+            
+      <AlertModal
+        isOpen={showMessage}
+        title={messageData.title}
+        message={messageData.message}
+        onClose={() => setShowMessage(false)}
+      />
+    </div>
   );
 }
 

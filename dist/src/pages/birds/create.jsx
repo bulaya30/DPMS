@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { checkName, checkNumber } from "../../validations/validate";
-import { processData } from "../../api";
+import { useProcessBird } from "../../hooks/useBirds";
 import { FaSave } from "react-icons/fa";
 
 function AddBird({brancheData, typeData, onSuccess}) {
+  const { mutate, isPending: isSaving }= useProcessBird();
   const [branches, setBranches] = useState([]);
   const [types, setTypes] = useState([]);
 
@@ -18,7 +19,6 @@ function AddBird({brancheData, typeData, onSuccess}) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ===================== LOAD DATA ===================== */
   useEffect(() => {
@@ -72,7 +72,6 @@ function AddBird({brancheData, typeData, onSuccess}) {
   /* ===================== SUBMIT ===================== */
   const handleSubmit = async e => {
     e.preventDefault();
-    if (isSaving) return;
 
     const validationErrors = {};
     Object.keys(formData).forEach(key => {
@@ -86,34 +85,30 @@ function AddBird({brancheData, typeData, onSuccess}) {
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const res = await processData({
-        collection: "birds",
-        action: "add",
-        data: formData,
-      });
-      setSuccess("Bird added successfully!");
-      setFormData(prev => ({ ...prev, 
-        branchId: branches.length === 1 ? branches[0].id : "", 
-        typeId: "",
-        quantity: "",
-        age: "",
-      }));
-      onSuccess?.()
-      // console.log(res)
-    } catch (err) {
-      setServerError(err.message || "Something went wrong");
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setSuccess("");
-        setServerError("");
-        setErrors({});
-      }, 5000);
-    }
+    mutate({
+      collection: "birds",
+      action: "add",
+      data: formData,
+    }, {
+      onSuccess: () => {
+        setSuccess("Bird added successfully!");
+        setFormData(prev => ({ ...prev, 
+          branchId: branches.length === 1 ? branches[0].id : "", 
+          typeId: "",
+          quantity: "",
+          age: "",
+        }));
+      },
+      onError: (err) => {
+        setServerError(err.message || "Something went wrong");
+      }
+    })
+    setTimeout(() => {
+      setSuccess("");
+      setServerError("");
+      setErrors({});
+    }, 5000);
   };
-  // console.log(branches)
 
   const fieldClass = name =>
     `${errors[name] ? "input-error" : ""} ${shake && errors[name] ? "shake" : ""}`;

@@ -1,47 +1,38 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import KPIStatCard from "../../components/KPIStatCard";
-import DashboardCard from "../../components/DashboardCard";
-import ConfirmModal from "../../components/Models/Confirm";
-import AlertModal from "../../components/Models/AlertModal";
-import AddBird from "./create";
-import UpdateBird from "./Update";
-import { getBirds, getBranches, getTypes, processData } from "../../api";
-import { FaDove } from "react-icons/fa";
-import { Permission } from "../../utils/permission";
+import React, { useState, useMemo } from 'react'
 
-/* ================= AUTH ================= */
-const user = JSON.parse(localStorage.getItem("user"));
-const role = user?.role;
-const isAdmin = role === "admin";
-const isManager = role === "manager";
-const canManage = Permission(role); // existing logic
-/* ================= HELPERS ================= */
-const normalizeDate = d => {
-  if (!d) return null;
-  if (typeof d?.toDate === "function") return d.toDate();
-  if (typeof d === "object" && "_seconds" in d) return new Date(d._seconds * 1000);
-  if (typeof d === "string") return new Date(d);
-  return new Date(d);
-};
-/**
- * Ensures the input is always an array.
- * - If input is already an array, returns it as-is
- * - If input is a single object, wraps it in an array
- * - If input is null/undefined, returns an empty array
- */
-export function normalizeToArray(input) {
-  if (Array.isArray(input)) return input;
-  if (input) return [input];
-  return [];
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+import { useSearchParams } from 'react-router-dom'
+import { useGetBirds, useProcessBird } from '../../hooks/useBirds'
+import { useGetBranches } from '../../hooks/useBranches'
+import { useGetTypes } from '../../hooks/useTypes'
+
+import AddBird from './create'
+import UpdateBird from './Update'
+
+import ConfirmModal from '../../components/Models/Confirm'
+import AlertModal from '../../components/Models/AlertModal'
+import useAuthStore from '../../store/authStore'
+
+/* ================= DATE FORMATTER ================= */
+function toJSDate(timestamp) {
+  if (!timestamp) return null;
+  if (timestamp instanceof Date) return timestamp;
+  if (timestamp._seconds) return new Date(timestamp._seconds * 1000);
+  return new Date(timestamp);
 }
 
-function Birds() {
-  const [branches, setBranches] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [allBirds, setAllBirds] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export default function Birds() {
+  const user = useAuthStore(state => state.user);
+  const isAdmin = user.role === 'admin';
+  const isManager = user.role === 'manager';
+  const canManage = user.role === 'admin' || user.role === 'manager';
+  
+  const { data: branches = [], isLoading: branchesLoading, error: branchesError } = useGetBranches();
+  const { data: types = [], isLoading: typesLoading, error: typesError } = useGetTypes();
+  const { data: birds = [], isLoading: birdsLoading, error: birdsError } = useGetBirds();
+  const { mutate, isPending: isSaving}  = useProcessBird();
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -54,35 +45,11 @@ function Birds() {
   /* ================= BRANCH FILTER (LOCKED) ================= */
   const branchFilter = isAdmin
     ? searchParams.get("branch") || "all"
-    : user?.branchId; // 🔐 forced
+    : user?.branchId;
 
-  /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [branchData, typeData, birdData] = await Promise.all([
-          getBranches(), getTypes(), getBirds()
-        ]);
-        setBranches(normalizeToArray(branchData));
-        setTypes(normalizeToArray(typeData));
-        setAllBirds(normalizeToArray(birdData));
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-  const reload = async () => {
-    const data = await getBirds();
-    setAllBirds(data);
-  };
   /* ================= FILTERED DATA ================= */
   const filteredBirds = useMemo(() => {
-    let data = [...allBirds];
+    let data = [...birds];
 
     if (branchFilter !== "all") {
       data = data.filter(b => b.branchId === branchFilter);
@@ -91,12 +58,33 @@ function Birds() {
     return data
       .map(b => ({
         ...b,
-        date: normalizeDate(b.date) 
+        date: toJSDate(b.date) 
       }))
 
-  }, [allBirds, branchFilter]);
+  }, [birds, branchFilter]);
 
+  const exportToExcel = () => {
+    const dataToExport = birds.map((row, index) => ({
+      "#": index + 1,
+      "Branch": row.branchName,
+      "Type": row.typeName,
+      "Age": row.age,
+      "Quantity": row.quantity,
+      "Price": row.price,
+      "Active": row.active ? "Yes" : "No",
+      "Date": toJSDate(row.date)?.toLocaleDateString(),
+    }))
 
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Bird Report");
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Bird_Report.xlsx`);
+  }
   /* ================= DELETE ================= */
   const handleDelete = bird => {
     if (isManager) return; 
@@ -108,82 +96,90 @@ function Birds() {
     const { id, active, branchId, typeId } = birdToDelete;
     setUpdatingId(id);
 
-    try {
-      await processData({
-        collection: "birds",
-        action: active ? "delete" : "restore",
-        id,
-        data: { active: !active, restore: !active, branchId, typeId }
-      });
-
-      setMessageData({
-        title: "Success",
-        message: `Bird ${active ? "deleted" : "restored"} successfully`
-      });
-
-      await reload();
-    } catch (err) {
-      setMessageData({ title: "Error", message: err.message });
-    } finally {
-      setShowConfirm(false);
-      setShowMessage(true);
-      setUpdatingId(null);
-      setBirdToDelete(null);
-    }
+    mutate({
+      collection: "birds",
+      action: active ? "delete" : "restore",
+      id,
+      data: { active: !active, restore: !active, branchId, typeId }
+    }, {
+      onSuccess: () => {
+        setMessageData({
+          title: "Success",
+          message: `Bird ${active ? "deleted" : "restored"} successfully`
+        });
+        setShowMessage(true);
+      },
+      onError: err => {
+        setMessageData({ title: "Error", message: err.message });
+        setShowMessage(true);
+      },
+      onSettled: () => {
+        setUpdatingId(null);
+        setShowConfirm(false);
+        setBirdToDelete(null);
+      }
+    })
   };
 
   /* ================= UI STATES ================= */
-  if (loading) {
+  if (birdsLoading || branchesLoading || typesLoading) {
     return (
       <div className="loading-wrapper">
         <div className="spinner" />
-        <span>Loading…</span>
+        <span>Loading data…</span>
       </div>
     );
   }
 
-  if (error) return <div className="error-message">{error}</div>;
-  /* ================= RENDER ================= */
+  if (birdsError || branchesError || typesError) {
+    const errorMsg = birdsError.message || branchesError.message || typesError.message;
+    return <div className="error-message">{errorMsg}</div>
+  };
   return (
-    <>
-      <div className={`dashboard-page `}>
-        {/* ================= HERO ================= */}
-        <div className="dashboard-hero">
-          <h1>Birds</h1>
-          <p>Birds Management</p>
+    <div className={`dashboard-page `}>
+      {/* ================= HERO ================= */}
+      <div className="dashboard-hero">
+        <h1>Birds</h1>
+        <p>Birds Management</p>
+      </div>
+
+      {/* ===== FILTERS (ADMIN ONLY) ===== */}
+      {isAdmin && (
+        <div className="dashboard-filters">
+          <select
+            value={branchFilter}
+            onChange={e =>
+              setSearchParams({ branch: e.target.value })
+            }
+          >
+            <option value="all">All Branches</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
-        {/* ===== FILTERS (ADMIN ONLY) ===== */}
-        {isAdmin && (
-          <div className="dashboard-filters">
-              <select
-                value={branchFilter}
-                onChange={e =>
-                  setSearchParams({ branch: e.target.value })
-                }
-              >
-                <option value="all">All Branches</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+      )}
+      {/* ===== FORMS (ADMIN / MANAGER) ===== */}
+      {canManage && (
+        <div className="crud-container">
+          {/* ===== ADD BIRD ===== */}
+          <div className="add-form-container mb-6">
+            <AddBird brancheData={branches} typeData={types} />
           </div>
-        )}
-        {/* ===== FORMS (ADMIN / MANAGER) ===== */}
-        {canManage && (
-          <div className="crud-container">
-            {/* ===== ADD BIRD ===== */}
-            <div className="add-form-container mb-6">
-              <AddBird brancheData={branches} typeData={types} onSuccess={reload} />
-            </div>
-            <div className="update-form-container mb-6">
-              <UpdateBird birdData={allBirds} brancheData={branches} typeData={types} onSuccess={reload} />
-            </div>
+          <div className="update-form-container mb-6">
+            <UpdateBird birdData={birds} brancheData={branches} typeData={types} />
           </div>
-        )}
-        {/* ===== TABLE ===== */}
+        </div>
+      )}
+      {/* ===== TABLE ===== */}
         <div className="norrechel-table-wrapper">
+          <div className="ispm-print-container">
+            <button onClick={exportToExcel} className="ispm-btn">
+              Export to Excel
+            </button>
+          </div>
           <h3>Birds Details</h3>
           <table className="norrechel-table">
             <thead>
@@ -249,9 +245,6 @@ function Birds() {
           {...messageData}
           onClose={() => setShowMessage(false)}
         />
-      </div>
-    </>
-  );
+    </div>
+  )
 }
-
-export default Birds;

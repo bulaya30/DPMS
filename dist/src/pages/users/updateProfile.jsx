@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { processData } from "../../api";
+import { useProcessUser } from "../../hooks/useUsers";
 import { checkPhone, checkName, checkMail, checkPassword } from "../../validations/validate";
-import { FaEdit, FaSave } from "react-icons/fa";
+import { FaSave } from "react-icons/fa";
 
-function UpdateProfile({ profile = [], onSuccess }) {
+function UpdateProfile({ profile = [] }) {
+  const { mutate, isPending: isSaving } = useProcessUser();
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false)
   
 
   const [formData, setFormData] = useState({
@@ -72,6 +72,8 @@ function UpdateProfile({ profile = [], onSuccess }) {
     setOriginalData(next);
   }, [profile]);
 
+  // console.log( profile );
+
   /* ================= VALIDATION ================= */
   const validateField = (name, value) => {
     switch (name) {
@@ -118,32 +120,35 @@ function UpdateProfile({ profile = [], onSuccess }) {
       setTimeout(() => setShake(true), 400);
       return;
     }
+    if (!profile) return;
+    const payload = {
+      collection: "users",
+      action: "update",
+      id: profile.id,
+      data: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        contact: formData.contact,
+        email: formData.email,
+      },
+    };
 
-    try {
-      setIsSaving(true);
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Information updated successfully!");
+      },
+      onError: err => {
+        setServerError(err.message);
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      },
+    });
+
     
-      if (!profile) return;
-
-      const res = await processData({
-        collection: "users",
-        action: "update",
-        id: profile.id,
-        data: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            contact: formData.contact,
-            email: formData.email,
-        },
-      });
-      setSuccess("Information updated successfully!");
-      onSuccess?.();
-    } catch (err) {
-      console.log(err)
-      setServerError(err.messemail);
-    } finally {
-      setTimeout(() => setShake(false), setErrors(''), setServerError(''), 5000);
-      setIsSaving(false)
-    }
   };
 
   /* ================= RENDER ================= */

@@ -377,6 +377,55 @@ async function deleteStock(stockId) {
   return { success: true };
 }
 
+async function deactivateStock(data) {
+
+    if (!data) throw new Error("Invalid data");
+  const { user, itemId } = data;
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+
+  const stock = await getStoks(user, "itemId", itemId);
+  
+  if (!stock) throw new Error("Stock not found");
+  
+  await db.update(collectionName, stock[0].id, {
+    active: false,
+    deletedAt: null,
+    updatedAt: new Date(),
+  });
+  
+  await inventoryController.deactivateInventory(data)
+
+
+  return { success: true };
+
+}
+
+async function activateStock(data) {
+  if (!data) throw new Error("Invalid data");
+  const { user, itemId } = data;
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+
+  const stock = await getStoks(user, "itemId", itemId);
+  
+  if (!stock) throw new Error("Stock not found");
+  
+  await db.update(collectionName, stock[0].id, {
+    active: true,
+    deletedAt: null,
+    updatedAt: new Date(),
+  });
+  
+  await inventoryController.activateInventory(data)
+
+
+  return { success: true };
+  
+}
+
 /* ============================
    PROCESS ROUTER
 ============================ */
@@ -418,5 +467,7 @@ export default {
   updateStock,
   adjustStock,
   deleteStock,
+  deactivateStock,
+  activateStock,
   process,
 };

@@ -18,7 +18,7 @@ body{
   --input-border: #ddd;
   --primary: #1e67c1;
   --primary-grad: linear-gradient(135deg, #1e67c1, #3691d8);
-  --sidebar-bg: #0065b8ce;;
+  --sidebar-bg: #054579ee;;
   
 }
 
@@ -439,7 +439,6 @@ body.dark .profile-dropdown {
   width: 150px;
   height: calc(100% - 60px);
   background: var(--sidebar-bg);
-  /* color: var(--text-main); */
   color: #ffffff;
   padding-top: 20px;
   transition: transform 0.3s ease;
@@ -462,42 +461,31 @@ body.dark .profile-dropdown {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 16px;
+  font-weight: 400;
+  font-size: 14px;
 }
 
 .menu-item {
-  display: flex;
   align-items: center;
   padding: 10px 24px;
   cursor: pointer;
+  transition: .3s all ease;
 }
 
 .menu-item:hover,
 .menu-item.active {
-  background: #396a9b42;
-  font-weight: 500;
+  background: #396a9b80;
+  font-weight: 400;
   border-left: 3px solid #0065b8;
 }
 
-.menu-item .icon {
-  font-size: 14px;
-  min-width: 20px;
-  transition: .5 ease;
-}
 
 .menu-item .text {
   margin-left: 2px;
-  font-size: 15px;
+  font-size: 13px;
 }
 
-.badge {
-  margin-left: auto;
-  background: red;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-}
+
 
 .chevron {
   transition: transform 0.25s ease;
@@ -938,7 +926,7 @@ body.dark .dashboard-filters {
 
 .alert-tabs button:hover {
   background-color: var(--tab-hover);
-  color: #fff;
+  color: #4a6cf7;
 }
 
 /* Alert List */
@@ -951,10 +939,12 @@ body.dark .dashboard-filters {
 }
 
 .alert-row {
+  display: flex;
+  flex-direction: column;
   background-color: var(--alert-bg);
   padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-primary);
   box-shadow: var(--row-shadow);
@@ -963,7 +953,9 @@ body.dark .dashboard-filters {
   gap: 10px;
   transition: background-color 0.3s, transform 0.2s;
 }
-
+.alert-row p {
+  width: 100%;
+}
 .alert-row:hover {
   background-color: var(--alert-hover);
   transform: translateX(2px);
@@ -973,22 +965,6 @@ body.dark .dashboard-filters {
   font-style: italic;
   color: var(--text-muted);
 }
-
-/* ================= VARIABLES ================= */
-/* You can set these in :root or theme context */
-/* :root {
-  --card-bg: #fff;
-  --card-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  --tab-bg: #f0f0f0;
-  --tab-hover: #007bff;
-  --primary: #007bff;
-  --alert-bg: #fef3f3;
-  --alert-hover: #fde2e2;
-  --row-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  --text-primary: #111;
-  --text-secondary: #555;
-  --text-muted: #888;
-} */
 
 /* Dark Mode Overrides */
 .dark .alerts-panel {
@@ -1304,6 +1280,30 @@ body.dark .dashboard-filters {
   text-align: center;
 }
 
+.ispm-print-container{
+  display: flex;
+  justify-content: right;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: .5rem;
+  border-radius: 6px;
+}
+.ispm-print-container .ispm-btn {
+
+  padding: 0.3rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  background: #0065b8;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ispm-print-container .ismp-btn:hover {
+  color: #fff;
+}
 /* ===================== SHAKE ANIMATION ===================== */
 @keyframes shake {
   0% { transform: translateX(0); }
@@ -1552,7 +1552,7 @@ body.dark .dashboard-filters {
   justify-content: center;
   font-size: 1rem;
   color: var(--text-main);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .loading-wrapper .spinner {
@@ -1951,17 +1951,22 @@ body.dark .dashboard-filters {
 .timeline-item {
   display: flex;
   justify-content: space-between;
-  background: #f7f9fb;
+  background: #f0f6fc;
+  background: #fff;
   padding: 0.4rem 0.6rem;
-  border-radius: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.timeline-item:hover {
+  background: #e0f7ea;
 }
 
 .timeline-day {
-  font-weight: 600;
+  color: #444;
 }
 
 .timeline-vaccine {
-  color: #444;
+  font-weight: 500;
 }
 
 .settings-card-actions {

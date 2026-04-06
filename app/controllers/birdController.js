@@ -80,12 +80,13 @@ async function validateBranchAndType(branchId, typeId) {
   if (!branch) throw new Error("Unknown branch");
   if (!type) throw new Error("Unknown type");
   if (!branch.active) throw new Error("Cannot add birds to an inactive branch");
+  if(!type.active) throw new Error("Cannot add birds to an inactive type");
 
   return { branch, type };
 }
 
 /* ===================== FETCH BIRDS ===================== */
-export async function fetchBirds(user, field = "", value = "", page = 1) {
+export async function fetchBirds(user, field = "", value = "", page = 1, system = false) {
   try {
     // ---------------- FETCH RAW BIRDS ----------------
     const data = await db.get(collectionName, field || null, value || null, {
@@ -105,6 +106,9 @@ export async function fetchBirds(user, field = "", value = "", page = 1) {
 
     // ---------------- LOAD BRANCHES & TYPES ----------------
     let branches = [];
+    if(system) {
+      branches = await db.get("branches");
+    } else
     if (user.role === "admin") {
       branches = await db.get("branches");
     } else {
@@ -167,6 +171,7 @@ async function getBirds(user, field = null, value = null) {
     }
 
     const birds = await fetchBirds(user, field, value);
+    // console.log(birds); 
 
     // Admin : full access
     if (user.role === "admin") {
@@ -205,18 +210,16 @@ async function addBird(user, bird) {
   await validateBranchAndType(bird.branchId, bird.typeId);
 
   // Fetch existing birds in branch
-  const birds = await getBirds(user, "branchId", bird.branchId);
+  const birds = await getBirds(user, "typeId", bird.typeId);
 
   // Find an active batch of same type and age
-  const batch = birds.find(
-    b => b.typeId === bird.typeId && Number(b.age) === age && b.active
+  const existing = birds.find(
+    b => Number(b.age) === age
   );
-  const existing = batch?.[0];
-
   // ===== MERGE INTO EXISTING BATCH =====
   if (existing) {
     // Use updateStock to automatically handle inventory
-    await updateStock({
+    await stockController.updateStock({
       user,
       branchId: existing.branchId,
       typeId: existing.typeId,
@@ -329,38 +332,46 @@ async function updateBird(user, id, updates, options = {}) {
 
 /* ===================== DELETE / RESTORE ===================== */
 async function deleteBird(user, id) {
+  
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" || user.role !== "manager") throw new Error("Permission denied");
+
   const birds = await getBirds(user, 'id', id);
   const existing = birds[0];
-
+  
   if (!existing) throw new Error("Bird not found");
-
+  
   const sold = await hasSalesAfterDate({
     branchId: existing.branchId,
     typeId: existing.typeId,
     fromDate: existing.date,
   });
-
+  
   if (sold)
     throw new Error("Cannot delete bird with sales history");
+  
   await db.update(collectionName, id, {
     active: false,
     deletedAt: new Date(),
   });
 
-  await stockController.adjustStock({
+  await stockController.deactivateStock({
     user,
     branchId: existing.branchId,
     typeId: existing.typeId,
     item: "bird",
-    delta: -existing.quantity,
-    reason: "Bird batch deleted",
+    itemId: existing.id,
   });
-
+  
   return { success: true };
 }
 
 
 async function restoreBird(user, id) {
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" || user.role !== "manager") throw new Error("Permission denied");
+  
   const birds = await getBirds(user, 'id', id);
   const existing = birds[0];
 
@@ -371,13 +382,12 @@ async function restoreBird(user, id) {
     restoredAt: new Date(),
   });
 
-  await stockController.adjustStock({
+  await stockController.activateStock({
     user,
     branchId: existing.branchId,
     typeId: existing.typeId,
     item: "bird",
-    delta: existing.quantity,
-    reason: "Bird batch restored",
+    itemId: existing.id,
   });
 
   return { success: true };

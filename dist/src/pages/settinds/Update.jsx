@@ -1,10 +1,12 @@
 import React, { useState, useEffect, Fragment, useMemo } from "react";
-import { getTypes, processData } from "../../api";
+import { useProcessPrice } from "../../hooks/usePrice";
 import { checkName, checkNumber } from "../../validations/validate";
 import { FaPlus, FaSave, FaTrash } from "react-icons/fa";
 
-function UpdateRule({ priceRules = [], onSuccess }) {
-  const [types, setTypes] = useState([]);
+function UpdateRule({ priceRules = [], typeData = [] }) {
+  const { mutate, isPending: isSaving } = useProcessPrice();
+  const types = typeData;
+
 
   const [formData, setFormData] = useState({
     typeId: "",
@@ -12,22 +14,10 @@ function UpdateRule({ priceRules = [], onSuccess }) {
     ranges: [{ minAge: "", maxAge: "", price: "", currency: "" }],
   });
 
+  const [success, setSuccess] = useState("");
   const [errors, setErrors] = useState({});
-  const [serverErrors, setServerErrors] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [serverErrors, setServerErrors] = useState();
 
-  /* ================= FETCH TYPES ================= */
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getTypes();
-        setTypes(data || []);
-      } catch (err) {
-        processData(err);
-      }
-    })();
-  }, []);
 
   /* ================= AUTO-FILL FROM EXISTING RULE ================= */
   useEffect(() => {
@@ -149,43 +139,47 @@ function UpdateRule({ priceRules = [], onSuccess }) {
   /* ================= SUBMIT ================= */
   const handleSubmit = async e => {
     e.preventDefault();
+
     if (!validate() || isSaving || !selectedRule || selectedRule === null) return;
-    try {
-      setLoading(true);
-      setIsSaving(true);
 
-      const payload = {
-        collection: "prices",
-        action: "update",
-        id: selectedRule.id,
-        data: {
-          typeId: formData.typeId,
-          item: formData.item,
-          ranges: formData.ranges.map(r => ({
-            minAge: Number(r.minAge),
-            maxAge: Number(r.maxAge),
-            price: Number(r.price),
-            currency: r.currency,
-          })),
-        },
-      };
-
-      const res = await processData(payload);
-      console.log(res)
-      onSuccess?.();
-    } catch (err) {
-      setServerErrors(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-      setIsSaving(false);
-    }
+    const payload = {
+      collection: "prices",
+      action: "update",
+      id: selectedRule.id,
+      data: {
+        typeId: formData.typeId,
+        item: formData.item,
+        ranges: formData.ranges.map(r => ({
+          minAge: Number(r.minAge),
+          maxAge: Number(r.maxAge),
+          price: Number(r.price),
+          currency: r.currency,
+        })),
+      },
+    };
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Rule updated successfully!");
+      },
+      onError: err => {
+        setServerErrors(err.message);
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setErrors({});
+          setServerErrors("");
+        }, 5000);
+      },
+    });
   };
 
   return (
     <div className="norrechel-form-container">
+      {success && <p className="success-text">{success}</p>}
+      {serverErrors && <p className="error-text">{serverErrors}</p>}
       <form onSubmit={handleSubmit} autoComplete="off">
-        {serverErrors && <p className="error-text">{serverErrors}</p>}
-
+       
         <h2>Update Rules</h2>
 
         {/* ================= HEADER ================= */}

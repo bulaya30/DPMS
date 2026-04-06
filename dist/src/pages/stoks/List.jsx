@@ -1,16 +1,19 @@
 import React, { useEffect, useState, useMemo } from "react";
-import {
-  getBranches,
-  getTypes,
-  getBirds,
-  getEggs,
-  getFeeds,
-  getStocks,
-} from "../../api";
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+import { useGetBranches } from "../../hooks/useBranches";
+import { useGetTypes } from "../../hooks/useTypes";
+import { useGetBirds } from "../../hooks/useBirds";
+import { useGetEggs  } from "../../hooks/useEggs";
+import { useGetFeeds } from "../../hooks/useFeeds";
+import { useGetStocks } from "../../hooks/useStocks";
 import KPIStatCard from "../../components/KPIStatCard";
 import { FaDove } from "react-icons/fa";
 import AddStock from "./create";
 import UpdateStock from "./Update";
+import useAuthStore from "../../store/authStore";
 
 const TABS = [
   { label: "Birds", key: "birds", item: "bird" },
@@ -18,10 +21,7 @@ const TABS = [
   { label: "Feeds", key: "feeds", item: "feed" },
 ];
 
-const user = JSON.parse(localStorage.getItem("user"));
-const role = user?.role;
-const canManager = role === "admin" || role === "manager";
-const isAdmin = role === "admin";
+
 
 export function normalizeToArray(input) {
   if (Array.isArray(input)) return input;
@@ -30,15 +30,19 @@ export function normalizeToArray(input) {
 }
 
 export default function StockStock() {
+  const {data: stocks = [], error: stockError, isLoading: stockLoading} = useGetStocks();
+  const {data: branches = [], error: branchError, isLoading: branchLoading} = useGetBranches();
+  const {data: types = [], error: typeError, isLoading: typeLoading} = useGetTypes();
+  const {data: birds = [], error: birdError, isLoading: birdLoading} = useGetBirds();
+  const {data: eggs = [], error: eggError, isLoading: eggLoading} = useGetEggs();
+  const {data: feeds = [], error: feedError, isLoading: feedLoading} = useGetFeeds();
+  const user = useAuthStore(state=> state.user);
+  const isAdmin = user.role === 'admin';
+  const canManage = user.role === 'admin' || user.role === 'manager';
+
   const [activeTab, setActiveTab] = useState("birds");
-  const [branches, setBranches] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [birds, setBirds] = useState([]);
-  const [eggs, setEggs] = useState([]);
-  const [feeds, setFeeds] = useState([]);
-  const [stock, setStock] = useState([]);
+
   const [selectedBranch, setSelectedBranch] = useState("all");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const activeTabObj = useMemo(
@@ -49,47 +53,9 @@ export default function StockStock() {
   const activeItem = activeTabObj?.item;
   const activeTabLabel = activeTabObj?.label || "";
 
-  /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    async function fetchData() {
-      setError(null);
-      setLoading(true);
-      try {
-        const [b, t, s, bd, ed, fd] = await Promise.all([
-          getBranches(),
-          getTypes(),
-          getStocks(),
-          getBirds(),
-          getEggs(),
-          getFeeds(),
-        ]);
-
-        setBranches(normalizeToArray(b));
-        setTypes(normalizeToArray(t));
-        setStock(normalizeToArray(s));
-        setBirds(normalizeToArray(bd));
-        setEggs(normalizeToArray(ed));
-        setFeeds(normalizeToArray(fd));
-      } catch (err) {
-        console.error("Stock fetch error:", err);
-        setError(err.message || "Failed to load stock");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  const reload = async () => {
-    const data = await getStocks()
-    setStock(normalizeToArray(data))
-  }
-  // console.log(stock)
-
   /* ================= FILTERED STOCK ================= */
   const filteredStock = useMemo(() => {
-    return stock.filter(row => {
+    return stocks.filter(row => {
       const branchMatch =
         selectedBranch === "all" || row.branchName === selectedBranch;
 
@@ -98,8 +64,30 @@ export default function StockStock() {
         row.item === activeItem 
       );
     });
-  }, [stock, selectedBranch, activeItem]);
+  }, [stocks, selectedBranch, activeItem]);
 
+
+  // Export filtered stock to Excel
+  const exportToExcel = () => {
+    const dataToExport = stocks.map((row, index) => ({
+      "#": index + 1,
+      "Item": row.itemName || row.item,
+      "Branch": row.branchName,
+      "Type": row.typeName ?? "-",
+      "Quantity": row.quantity,
+      "Date": form
+    }))
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `Stock_Report.xlsx`);
+  }
+  
   /* ================= KPI: AVAILABLE BIRDS BY TYPE ================= */
   const availableByType = useMemo(() => {
     if (activeItem !== "bird") return {};
@@ -121,142 +109,153 @@ export default function StockStock() {
   }, [availableByType]);
 
   const lossColumnConfig = useMemo(() => {
-  switch (activeItem) {
-    case "bird":
-      return { label: "Lost", field: "quantityLost", unit: 'Pieces'};
-    case "egg":
-      return { label: "Spoiled", field: "quantityLost", unit: 'Trays' };
-    case "feed":
-      return { label: "Damaged", field: "quantityLost" };
-    default:
-      return { label: "Lost", field: "quantityLost" };
+    switch (activeItem) {
+      case "bird":
+        return { label: "Lost", field: "quantityLost", unit: 'Pieces'};
+      case "egg":
+        return { label: "Spoiled", field: "quantityLost", unit: 'Trays' };
+      case "feed":
+        return { label: "Damaged", field: "quantityLost" };
+      default:
+        return { label: "Lost", field: "quantityLost" };
+    }
+  }, [activeItem]);
+
+  if(stockLoading || branchLoading || typeLoading || birdLoading || eggLoading || feedLoading){
+    return (
+      <div className="loading-wrapper">
+        <div className="spinner"></div>
+        <span>Loading Data...</span>
+      </div>
+    );
   }
-}, [activeItem]);
+
+  if(stockError || branchError || typeError || birdError || eggError || feedError){
+    return (
+      <div className="error-message">
+        {
+          stockError?.message || 
+          branchError?.message || 
+          typeError?.message || 
+          birdError?.message || 
+          eggError?.message || 
+          feedError?.message
+        }
+      </div>
+    );
+  }
 
   return (
-    <>
-      {loading && (
-        <div className="loading-wrapper">
-          <div className="spinner"></div>
-          <span>Loading Data...</span>
-        </div>
-      )}
-
-      {error && <div className="error-message">{error}</div>}
-
-      {!loading && !error && (
-        <div className={`dashboard-page `}>
-          {/* ================= HERO ================= */}
-          <div className="dashboard-hero">
-            <h1>Stock Report</h1>
-            <p>Decision Maker</p>
-          </div>
-          {/* ================= FILTERS ================= */}
-          {isAdmin && (
-            <div className="dashboard-filters">
-              {/* <div className="filter-card"> */}
-                <h4>Branches</h4>
-                  <select
-                    value={selectedBranch}
-                    onChange={e => setSelectedBranch(e.target.value)}
-                  >
-                    <option value="all">All branches</option>
-                    {branches.map(branch => (
-                      <option key={branch.id} value={branch.name}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                {/* </div> */}
-              </div>
-          )}
-          {/* ================= TABS ================= */}
-          <div className="stock-tabs">
-            {TABS.map(tab => (
-              <button
-                key={tab.key}
-                className={activeTab === tab.key ? "active" : ""}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          {/* ================= KPI DASHBOARD ================= */}
-          {activeItem === "bird" && (
-            <div className="dashboard-kpis">
-              {Object.entries(availableByType).map(([type, qty]) => (
-                <KPIStatCard
-                  key={type}
-                  title={`${type} Available`}
-                  value={qty}
-                  icon={<FaDove />}
-                />
+    <div className={`dashboard-page `}>
+      {/* ================= HERO ================= */}
+      <div className="dashboard-hero">
+        <h1>Stock Report</h1>
+        <p>Decision Maker</p>
+      </div>
+      {/* ================= FILTERS ================= */}
+      {isAdmin && (
+        <div className="dashboard-filters">
+          <h4>Branches</h4>
+            <select
+              value={selectedBranch}
+              onChange={e => setSelectedBranch(e.target.value)}
+            >
+              <option value="all">All branches</option>
+              {branches.map(branch => (
+                <option key={branch.id} value={branch.name}>
+                  {branch.name}
+                </option>
               ))}
-              <KPIStatCard
-                title="Total Available Birds"
-                value={totalAvailable}
-                icon={<FaDove />}
-              />
-            </div>
-          )}
-          {/* ================= CRUD ================= */}
-          {canManager && (
-            <div className="crud-container">
-              <div className="add-form-container">
-                <AddStock
-                  stockData={stock}
-                  branchData={branches}
-                  typeData={types}
-                  title={activeTabLabel}
-                  onSucess={reload}
-                />
-              </div>
-              <div className="update-form-container">
-                <UpdateStock
-                  branchData={branches}
-                  typeData={types}
-                  stockData={stock}
-                  birdData={birds}
-                  eggData={eggs}
-                  feedData={feeds}
-                  title={activeTabLabel}
-                  onSucess={reload}
-                />
-              </div>
-            </div>
-          )}
-          {/* ================= STOCK TABLE ================= */}
-          <div className="norrechel-table-wrapper">
-            <table className="norrechel-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Item</th>
-                  <th>Branch</th>
-                  <th>Type</th>
-                 <th>{lossColumnConfig.label}</th>
-                  <th>Available</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStock.map((row, index) => (
-                  <tr key={row.id}>
-                    <td>{index + 1}</td>
-                    <td>{row.itemName || row.item}</td>
-                    <td>{row.branchName}</td>
-                    <td>{row.typeName ?? '-'}</td>
-                    <td className="lost">{row[lossColumnConfig.field] ?? 0} {lossColumnConfig.unit ?? ''}</td>
-                    <td className="available">
-                      {row.quantity} {lossColumnConfig.unit ?? ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            </select>
+          </div>
+      )}
+      {/* ================= TABS ================= */}
+      <div className="stock-tabs">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            className={activeTab === tab.key ? "active" : ""}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {/* ================= KPI DASHBOARD ================= */}
+      {activeItem === "bird" && (
+        <div className="dashboard-kpis">
+          {Object.entries(availableByType).map(([type, qty]) => (
+            <KPIStatCard
+              key={type}
+              title={`${type} Available`}
+              value={qty}
+              icon={<FaDove />}
+            />
+          ))}
+          <KPIStatCard
+            title="Total Available Birds"
+            value={totalAvailable}
+            icon={<FaDove />}
+          />
+        </div>
+      )}
+      {/* ================= CRUD ================= */}
+      {canManage && (
+        <div className="crud-container">
+          <div className="add-form-container">
+            <AddStock
+              stockData={stocks}
+              branchData={branches}
+              typeData={types}
+              feedData={feeds}
+              title={activeTabLabel}
+            />
+          </div>
+          <div className="update-form-container">
+            <UpdateStock
+              branchData={branches}
+              typeData={types}
+              stockData={stocks}
+              birdData={birds}
+              eggData={eggs}
+              feedData={feeds}
+              title={activeTabLabel}
+            />
           </div>
         </div>
       )}
-    </>
+      {/* ================= STOCK TABLE ================= */}
+      <div className="norrechel-table-wrapper">
+        <div className="ispm-print-container">
+          <button onClick={exportToExcel} className="ispm-btn">
+            Export to Excel
+          </button>
+        </div>
+        <table className="norrechel-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item</th>
+              <th>Branch</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredStock.map((row, index) => (
+              <tr key={row.id}>
+                <td>{index + 1}</td>
+                <td>{row.itemName || row.item}</td>
+                <td>{row.branchName}</td>
+                <td>{row.typeName ?? '-'}</td>
+                <td className="available">
+                  {row.quantity} 
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

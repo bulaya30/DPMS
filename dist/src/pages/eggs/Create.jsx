@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { checkDate, checkName, checkNumber } from "../../validations/validate";
-import { getBranches, getTypes, getBirds, processData } from "../../api";
-import { FaPlus, FaSave } from "react-icons/fa";
+import { useProcessEgg } from "../../hooks/useEggs";
+import { FaSave } from "react-icons/fa";
 
 const user = JSON.parse(localStorage.getItem("user"));
 
-function AddEgg({branchData, typeData,onSuccess}) {
+function AddEgg({branchData, typeData}) {
+  const { mutate, isPending } = useProcessEgg();
   // Auto-fill today's date
   const today = new Date().toISOString().split("T")[0];
 
@@ -24,7 +25,6 @@ function AddEgg({branchData, typeData,onSuccess}) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false)
 
   // Function to determine default egg color based on bird type
   const getDefaultEggColor = (birdType) => {
@@ -98,7 +98,7 @@ function AddEgg({branchData, typeData,onSuccess}) {
   /* ================= SUBMIT ================= */
   const handleSubmit = async e => {
     e.preventDefault();
-    if(isSaving) return;
+    if(isPending) return;
     
 
     let newErrors = {};
@@ -113,8 +113,6 @@ function AddEgg({branchData, typeData,onSuccess}) {
       return;
     }
 
-    try {
-      setIsSaving(true)
       const payload = {
         collection: "eggs",
         action: "add",
@@ -127,25 +125,28 @@ function AddEgg({branchData, typeData,onSuccess}) {
           price: Number(formData.price)
         }
       };
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Egg added successfully!");
+        setFormData({
+          branch: branches.length === 1 ? branches[0].id : "",
+          birdType: "",
+          eggColor: "",
+          date: today,
+          quantity: "",
+          price: "",
+        });
+      },
 
-      await processData(payload);
-      setSuccess("Egg added successfully!");
-      // Reset form but keep today as date
-      setFormData(prev => ({
-        branch: branches.length === 1 ? branches[0].id : "",
-        birdType: "",
-        eggColor: "",
-        date: today,
-        quantity: "",
-        price: "",
-      }));
-      onSuccess?.()
-    } catch (err) {
-      setServerError(err.message);
-    } finally {
-      setTimeout(() => setShake(false), setServerError(""), setSuccess(""), setIsSaving(false), 5000);
-      
-    }
+      onError: (err) => {
+        setServerError(err.message);
+      }
+    });
+    setTimeout(() => {
+      setShake(false);
+      setServerError("");
+      setSuccess("");
+    }, 5000);
   };
 
   return (
@@ -158,7 +159,6 @@ function AddEgg({branchData, typeData,onSuccess}) {
           <div className="norrechel-grouped-inputs">
             <div>
               {/* Branch */}
-              {/* <label className={`${errors.branch ? "error-text" : ""} ${shake && errors.branch ? "shake" : ""}`}>Branch</label> */}
               <label className={`${errors.branch ? "error-text" : ""}  ${shake && errors.branch ? "shake" : ""}`}>Branch</label>
               {branches.length === 1 ? (
                 <select
@@ -275,11 +275,11 @@ function AddEgg({branchData, typeData,onSuccess}) {
         {/* ===== SUBMIT ===== */}
         <button
             type="submit"
-            disabled={isSaving}
-            className={`norrechel-btn save-btn ${isSaving ? "loading" : ""}`}
+            disabled={isPending}
+            className={`norrechel-btn save-btn ${isPending ? "loading" : ""}`}
           >
-            {isSaving && <span className="spinner" />}
-            <FaSave /> {isSaving ? "Saving..." : "Save "}
+            {isPending && <span className="spinner" />}
+            <FaSave /> {isPending ? "Saving..." : "Save "}
         </button>
       </form>
     </div>

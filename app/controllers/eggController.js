@@ -206,18 +206,18 @@ async function deleteEgg(user, id) {
 
   const egg = await getEggs(user, 'id', id);
   const existing = egg[0];
-
   if (!existing) throw new Error("Egg not found");
-
+  
   if (user.role === "manager" && existing.branchId !== user.branchId)
     throw new Error("Managers can only delete eggs from their branch");
-
+  
   const sold = await hasSalesAfterDate({
     branchId: existing.branchId,
     typeId: existing.typeId,
     fromDate: existing.date,
   });
 
+  
   if (sold)
     throw new Error("Cannot delete egg with sales history");
 
@@ -225,18 +225,63 @@ async function deleteEgg(user, id) {
     active: false,
     deletedAt: new Date(),
   });
-  await stockController.adjustStock({
-    user,
-    branchId: existing.branchId,
-    typeId: existing.typeId,
-    item: "egg",
-    delta: -existing.quantity,
-    reason: "Egg batch deleted",
+  await stockController.deactivateStock({
+    user, 
+    itemId: id 
   })
 
   return { success: true };
 }
 
+async function restoreEgg(user, id) {
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+  
+  const eggs = await getEggs(user, 'id', id);  
+  const existing = eggs[0];
+  if (!existing) throw new Error("Egg not found");
+
+  await db.update(collectionName, id, {
+    active: true,
+    restoredAt: new Date(),
+  });
+  await stockController.activateStock({
+    user,
+    itemId: existing.id,
+  });
+
+  return { success: true };
+}
+
+async function stock(user, data) {
+  if(!data) throw new Error("Invalid data");
+
+  const { branchId, typeId, quantity } = data;
+
+  if(!user) throw new Error("No user authenticated");
+  if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
+
+  if(!branchId || !typeId || !quantity) throw new Error("Missing required fields");
+
+  const egg = await getEggs(user, 'typeId', typeId);
+  console.log(egg);
+  const existing = egg[0];
+  if (!existing) throw new Error("Egg not found");
+
+  await stockController.updateStock({
+    user,
+    branchId: existing.branchId,
+    typeId: existing.typeId,
+    item: "egg",
+    itemId: existing.id,
+    newQuantity: Number(existing.quantity) + Number(quantity),
+    reason: "New stock",
+  });
+
+  return { success: true };
+  
+}
+  
 
 /* ================= PROCESS ================= */
 async function process(payload) {
@@ -254,6 +299,11 @@ async function process(payload) {
     case "delete":
       return deleteEgg(user, id);
 
+      case "restore":
+        return restoreEgg(user, id);
+
+      case "stock":
+        return stock(user, data);
     default:
       throw new Error("Unknown action");
   }

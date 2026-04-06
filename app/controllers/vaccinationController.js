@@ -120,6 +120,7 @@ async function buildVaccinationTimeline(birdBatch, template) {
 
     if (Number(birdBatch.age) >= Number(item.ageInDays)) {
       return {
+        type: birdBatch.typeName,
         vaccine: item.vaccine,
         ageInDays: item.ageInDays,
         status: "OVERDUE",

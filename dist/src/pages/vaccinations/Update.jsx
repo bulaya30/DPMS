@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getTypes, processData } from "../../api";
+import { useProcessSchedule } from "../../hooks/useSchedule";
 import { checkName, checkNumber } from "../../validations/validate";
 import { FaPlus, FaSave, FaTrash } from "react-icons/fa";
 
-function UpdateSchedule({ schedules = [], onSuccess }) {
-  const [types, setTypes] = useState([]);
+function UpdateSchedule({ scheduleData = [], typeData = [] }) {
+  const { mutate, isPending: isSaving } = useProcessSchedule();
+  const types = typeData;
+  const schedules = scheduleData;
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     typeId: "",
@@ -19,17 +20,7 @@ function UpdateSchedule({ schedules = [], onSuccess }) {
   const [originalData, setOriginalData] = useState(null);
   const [hasSchedule, setHasSchedule] = useState(false);
 
-  /* ================= FETCH TYPES ================= */
-  useEffect(() => {
-    (async () => {
-      try {
-        const t = await getTypes();
-        setTypes(t.filter(t => t.active));
-      } catch (err) {
-        console.error(err);
-      }
-    })();
-  }, []);
+
 
   /* ================= LOAD SELECTED SCHEDULE ================= */
   useEffect(() => {
@@ -125,44 +116,43 @@ function UpdateSchedule({ schedules = [], onSuccess }) {
     e.preventDefault();
     if (!hasSchedule || !hasChanged || isSaving) return;
     if (!validate()) return;
-
-    try {
-      setIsSaving(true);
-
-      const selected = schedules.find(
-        s => s.typeId === formData.typeId
-      );
-
-      if (!selected) return;
-
-      const res = await processData({
-        collection: "schedules",
-        action: "update",
-        id: selected.id,
-        data: {
-          typeId: formData.typeId,
-          name: formData.name.trim(),
-          schedule: formData.schedule.map(s => ({
-            ageInDays: Number(s.ageInDays),
-            vaccine: s.vaccine.trim()
-          }))
-        }
-      });
-
-      console.log(res)
-
-      setSuccess("Schedule updated successfully");
-      setServerError("");
-      setOriginalData(JSON.stringify(formData));
-      onSuccess?.();
-
-    } catch (err) {
-      console.error(err);
-      setServerError(err.message || "Update failed");
-      setSuccess("");
-    } finally {
-      setIsSaving(false);
+    
+    const selected = schedules.find(
+      s => s.typeId === formData.typeId
+    );
+    
+    if (!selected) return;
+    const payload = {
+      collection: "schedules",
+      action: "update",
+      id: selected.id,
+      data: {
+        typeId: formData.typeId,
+        name: formData.name.trim(),
+        schedule: formData.schedule.map(s => ({
+          ageInDays: Number(s.ageInDays),
+          vaccine: s.vaccine.trim()         
+        }))
+      }
     }
+    mutate(payload, {
+      onSuccess: () => {
+        setSuccess("Schedule updated successfully");
+        setServerError("");
+        setOriginalData(JSON.stringify(formData));
+      },
+      onError: err => {
+        setServerError(err.message || "Update failed");
+        setSuccess("");
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    })
+    
   };
 
   /* ================= RENDER ================= */
@@ -173,7 +163,7 @@ function UpdateSchedule({ schedules = [], onSuccess }) {
       {serverError && <p className="error-text">{serverError}</p>}
 
       <form onSubmit={handleSubmit} autoComplete="off">
-        <h2>Update Vaccination Schedule</h2>
+        <h2>Update Schedule</h2>
 
         <div className="inputs">
           <div className="norrechel-grouped-inputs">

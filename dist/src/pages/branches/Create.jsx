@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { checkName } from "../../validations/validate";
+import { useProcessBranch } from "../../hooks/useBranches";
 import { processData } from "../../api";
-import { FaPlus, FaSave } from "react-icons/fa";
+import { FaSave } from "react-icons/fa";
 
 /* ================= LOCATION DATA ================= */
 const LOCATION_DATA = {
@@ -11,7 +12,9 @@ const LOCATION_DATA = {
   Jinja: ["Jinja City", "Bugembe"]
 };
 
-function AddBranch({onSuccess}) {
+
+function AddBranch() {
+  const { mutate, isPending: isSaving} = useProcessBranch();
   /* ================= STATE ================= */
   const [formData, setFormData] = useState({
     name: "",
@@ -23,7 +26,6 @@ function AddBranch({onSuccess}) {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   /* ===================== SHAKE RESET ===================== */
   useEffect(() => {
@@ -79,33 +81,34 @@ function AddBranch({onSuccess}) {
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const payload = {
-        collection: "branches",
-        action: "add",
-        data: {
-          name: formData.name.trim(),
-          district: formData.district,
-          city: formData.city,
-        }
-      };
+    const payload = {
+      collection: "branches",
+      action: "add",
+      data: {
+        name: formData.name.trim(),
+        district: formData.district,
+        city: formData.city,
+      }
+    };
+    // console.log(payload);
+    mutate(payload, {
+      onSuccess: ()=>{
+        setSuccess("Branch added successfully!");
+        setFormData({ name: "", district: "", city: "" });
 
-      await processData(payload);
-
-      setSuccess("Branch added successfully!");
-      setFormData({ name: "", district: "", city: "" });
-      onSuccess?.();
-    } catch (err) {
-      setServerError(err.message || "Failed to add branch");
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setErrors({});
-        setSuccess("");
-        setServerError("");
-      }, 5000);
-    }
+      },
+      onError: (err)=>{
+        setServerError(err.message || "Failed to add branch");
+      }, 
+      onSettled: ()=>{
+        setTimeout(() => {
+          setErrors({});
+          setSuccess("");
+          setServerError("");
+        }, 5000);
+      }
+    });
+    
   };
 
   /* ===================== RENDER ===================== */

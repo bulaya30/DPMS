@@ -56,8 +56,6 @@ const handleAxiosError = (error, fallbackMessage) => {
 
 /* ===================== GET REQUESTS ===================== */
 
-
-
 export const getInventories = async (field = null, value = null) => {
   try {
     const params = {};
@@ -201,6 +199,7 @@ export const getDailySales = async (field = null, value = null) => {
     handleAxiosError(error, "Request failed");
   }
 };
+
 
 export const getEmployees = async (field = null, value = null) => {
   try {

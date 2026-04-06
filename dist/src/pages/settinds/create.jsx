@@ -1,11 +1,12 @@
 import React, { useState, useEffect, Fragment } from "react";
-import { getTypes, processData } from "../../api";
+import { useProcessPrice } from "../../hooks/usePrice";
 import { checkName, checkNumber } from "../../validations/validate";
 import { FaPlus, FaSave, FaTrash } from "react-icons/fa";
 
-function AddRule({typeData, onSuccess }) {
-  const [types, setTypes] = useState([]);
+function AddRule({typeData = [] }) {
+  const { mutate, isPending: isSaving } = useProcessPrice();
 
+  const types = typeData;
   const [formData, setFormData] = useState({
     typeId: "",
     item:"",
@@ -14,15 +15,8 @@ function AddRule({typeData, onSuccess }) {
 
   const [errors, setErrors] = useState({});
   const [serverErrors, setServerErrors] = useState("");
-  const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
-  /* ================= FETCH TYPES ================= */
-  useEffect(() => {
-    setTypes(typeData || []);
-    
-  }, [typeData]);
 
   /* ================= BASIC CHANGE ================= */
   const handleChange = e => {
@@ -84,40 +78,32 @@ function AddRule({typeData, onSuccess }) {
     e.preventDefault();
     if (!validate() || isSaving) return;
 
-    try {
-      setLoading(true);
-      setIsSaving(true);
-
-      const payload = {
-        collection: "prices",
-        action: "add",
-        data: {
-          typeId: formData.typeId,
-          item: formData.item,
-          ranges: formData.ranges.map(r => ({
-            minAge: Number(r.minAge),
-            maxAge: Number(r.maxAge),
-            price: Number(r.price),
-            currency: r.currency,
-          })),
-        },
-      };
-
-      await processData(payload);
-      setFormData({
-        typeId: "",
-        ranges: [{ minAge: "", maxAge: "", price: "" }],
-      });
-
-      onSuccess?.();
-    } catch (err) {
-      // console.log(err.message)
-      setServerErrors(err.message);
-    } finally {
-      setLoading(false);
-      setShake(false);
-      setIsSaving(false);
-    }
+    const payload = {
+      collection: "prices",
+      action: "add",
+      data: {
+        typeId: formData.typeId,
+        item: formData.item,
+        ranges: formData.ranges.map(r => ({
+          minAge: Number(r.minAge),
+          maxAge: Number(r.maxAge),
+          price: Number(r.price),
+          currency: r.currency,
+        })),
+      },
+    };
+    mutate(payload, {
+      onSuccess: () => {
+        setFormData({
+          typeId: "",
+          ranges: [{ minAge: "", maxAge: "", price: "" }],
+        });
+      },
+      onError: (err) => {
+        setServerErrors(err.message);
+      },
+    });
+    
   };
 
   return (
