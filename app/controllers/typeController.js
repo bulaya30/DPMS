@@ -1,16 +1,13 @@
 import db from "../db/db.js";
-import birdController from "./birdController.js";
-import eggController from "./eggController.js";
+import { io } from "../app.js";
 
 const collectionName = "types";
 
 async function getTypes(user, field = null, value = null) {
   try {
-    // console.log(user)
     if (user.role === 'admin') return await fetchTypes(field, value);
     return await fetchTypes(null, null, {includeInactive: false})    
   } catch (error) {
-    console.log(error)
     throw new Error(error);
     
   }
@@ -65,6 +62,8 @@ async function addType(type) {
   const payload = { ...type, active: true, date: new Date(), createdAt: new Date().toISOString() };
   const docRef = await db.add(collectionName, payload);
 
+  io.emit("typesUpdated");
+
   return { id: docRef.id, ...payload };
 }
 
@@ -78,6 +77,8 @@ async function updateType(typeId, updates) {
 
   delete updates.restore;
   await db.update(collectionName, typeId, updates);
+
+  io.emit("typesUpdated");
 
   return { id: typeId, ...updates };
 }
@@ -105,6 +106,8 @@ async function deleteType(typeId) {
     deletedAt: new Date().toISOString(),
   });
 
+  io.emit("typesUpdated");
+
   return { id: typeId, deleted: true };
 }
 
@@ -114,6 +117,8 @@ async function restoreType(typeId) {
     active: true,
     restoredAt: new Date().toISOString(),
   });
+
+  io.emit("typesUpdated");
 
   return { id: typeId, restored: true };
 }

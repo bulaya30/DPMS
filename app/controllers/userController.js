@@ -1,4 +1,6 @@
 import db, { auth } from "../db/db.js";
+import { io } from "../app.js";
+
 import jwt from "jsonwebtoken";
 
 /* ===================== CONSTANTS ===================== */
@@ -194,7 +196,7 @@ const addUser = async (data) => {
 
   const cred = await auth.createUser({ email, password });
 
-  return await db.add(collectionName, {
+  await db.add(collectionName, {
     uid: cred.uid,
     firstName,
     lastName,
@@ -206,6 +208,10 @@ const addUser = async (data) => {
     active: true,
     date: new Date(),
   }, cred.uid);
+
+  io.emit("usersUpdated");
+
+  return { success: true };
 };
 
 /* ===================== UPDATE USER ===================== */
@@ -213,7 +219,11 @@ const updateUser = async (id, data) => {
   const existing = await fetchUsers("id", id);
   if (!existing) throw new Error("No user found");
 
- return await db.update(collectionName, id, { ...existing, ...data });
+ await db.update(collectionName, id, { ...existing, ...data });
+
+  io.emit("usersUpdated");
+
+  return {  success: true };
  
 };
 

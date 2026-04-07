@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 
 const collectionName = "vaccinations"; // vaccination history (completed)
 
@@ -88,6 +89,9 @@ async function completeVaccination(birdBatch, nextVaccination) {
   
   try {
     const docRef = await db.add(collectionName, record);
+
+    io.emit("vaccinationsUpdated");
+
     return { id: docRef.id, ...record };
     
   } catch (error) {

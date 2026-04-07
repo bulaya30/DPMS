@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 import stockController from "./stockController.js";
 
 const collectionName = "eggs";
@@ -132,6 +133,8 @@ async function addEgg(user, egg) {
     reason: "New egg batch",
   });
 
+  io.emit("eggsUpdated");
+
   return { id: docRef.id, ...data };
 }
 
@@ -192,7 +195,7 @@ async function updateEgg(user, id, updates) {
       reason: "Egg quantity correction",
     })
   }
-
+  io.emit("eggsUpdated");
   return { success: true };
 }
 
@@ -206,6 +209,7 @@ async function deleteEgg(user, id) {
 
   const egg = await getEggs(user, 'id', id);
   const existing = egg[0];
+
   if (!existing) throw new Error("Egg not found");
   
   if (user.role === "manager" && existing.branchId !== user.branchId)
@@ -230,10 +234,13 @@ async function deleteEgg(user, id) {
     itemId: id 
   })
 
+  io.emit("eggsUpdated");
+
   return { success: true };
 }
 
 async function restoreEgg(user, id) {
+
   if(!user) throw new Error("No user authenticated");
   if(user.role !== "admin" && user.role !== "manager") throw new Error("Permission denied");
   
@@ -249,6 +256,8 @@ async function restoreEgg(user, id) {
     user,
     itemId: existing.id,
   });
+
+  io.emit("eggsUpdated");
 
   return { success: true };
 }
@@ -276,6 +285,8 @@ async function stock(user, data) {
     newQuantity: Number(existing.quantity) + Number(quantity),
     reason: "New stock",
   });
+
+  io.emit("eggsUpdated");
 
   return { success: true };
   

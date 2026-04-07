@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 import stockController from "./stockController.js";
 const collectionName = "feeds";
 
@@ -80,6 +81,7 @@ async function addFeed(user, data) {
     reason: "New Feed",
   });
 
+  io.emit("feedsUpdated");
   
   return { id: docRef.id, ...feed };
 }
@@ -93,10 +95,14 @@ async function addFeed(user, data) {
       throw new Error("Branch and quantity are required");
 
     if(!user) throw new Error("No User logged in")
+
     const feed = await fetchFeeds(user, 'name', data.name)
+
     if(feed?.length === 0) throw new Error("No Feed found in that Branch")
+
     const existing = feed[0];
     const quantity = Number(data.quantity);
+
     if (isNaN(quantity) || quantity <= 0)
       throw new Error("Invalid quantity");
 
@@ -110,6 +116,7 @@ async function addFeed(user, data) {
       field: "quantityConsumed", 
       reason: "Feed consumed",
     });
+    io.emit("feedsUpdated");
   return { success: true, consumed: quantity };
 }
 
@@ -153,6 +160,7 @@ async function updateFeed(user, id, updates) {
       reason: "Feed quantity corrected",
     });
   }
+  io.emit("feedsUpdated");
   return { success: true };
 }
 
@@ -178,6 +186,7 @@ async function deleteFeed(user, id) {
     itemId: existing.id,
   });
 
+  io.emit("feedsUpdated");
   return { success: true };
 }
 
@@ -200,6 +209,8 @@ async function restoreFeed(user, id) {
     user,
     itemId: existing.id,
   });
+
+  io.emit("feedsUpdated");
 
   return { success: true };
 }
@@ -230,6 +241,7 @@ async function restoreFeed(user, id) {
       newQuantity: Number(existing.quantity) + Number(quantity),
       reason: "New stock",
     });
+    io.emit("feedsUpdated");
 
     return { success: true };
     

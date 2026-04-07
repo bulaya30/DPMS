@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
 } from "react-router-dom";
+import { useEffect } from "react";
 
 import { ThemeProvider } from "./components/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,12 +14,34 @@ import Index from "./pages";
 import Login from "./pages/Login";
 import AdminSetup from "./pages/users/admin/setUp";
 
+import { socket } from "./api/socket";
+import { useRealtimeUpdates } from "./hooks/useRealtimeUpdates";
+
 import "./styles/style.css";
 import "./styles/mobile.css";
 
 const queryClient = new QueryClient();
 
 function App() {
+  // 1️⃣ connect socket
+  useEffect(() => {
+    socket.on("connect", () => {
+      console.log("✅ Connected:", socket.id);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected");
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+    };
+  }, []);
+
+  // 2️⃣ activate real-time updates for queries
+  useRealtimeUpdates();
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

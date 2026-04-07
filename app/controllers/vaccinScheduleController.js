@@ -1,4 +1,6 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
+
 import vaccinationController from "./vaccinationController.js";
 
 const collectionName = "vaccine_schedules";
@@ -190,7 +192,10 @@ async function addSchedule(user, data) {
     };
 
     const id = await db.add(collectionName, template);
-    return id;
+
+    io.emit("vaccinationSchedulesUpdated");
+
+    return { success: true };
 
   } catch (error) {
     throw new Error(error);
@@ -239,6 +244,7 @@ async function updateSchedule(user, id, update) {
     };
 
     await db.update(collectionName, id, template);
+    io.emit("vaccinationSchedulesUpdated");
     return true;
 
   } catch (err) {
@@ -290,6 +296,7 @@ async function deleteSchedule(user, id) {
       deletedAt: new Date(),
       updatedAt: new Date()
     });
+    io.emit("vaccinationSchedulesUpdated");
     return { success: true };
   } catch (error) {
     throw new Error(error);
@@ -313,6 +320,7 @@ async function restoreSchedule(user, id) {
       deletedAt: null,
       updatedAt: new Date()
     });
+    io.emit("vaccinationSchedulesUpdated");
     return { success: true };
   } catch (error) {
     throw new Error(error);

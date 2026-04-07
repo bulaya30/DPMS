@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 import stockController from "./stockController.js";
 import birdController from "./birdController.js";
 import eggController from "./eggController.js";
@@ -212,6 +213,8 @@ async function addLoss(user, loss) {
     field: "quantityLost",
   });
 
+  io.emit("lossesUpdated");
+
   return { id: docRef.id, ...data };
 }
 
@@ -286,6 +289,7 @@ async function updateLoss(user, id, updates) {
   };
   await stockController.addStock(stockData);
   
+  io.emit("lossesUpdated");
 
   return updatedData;
 }
@@ -324,6 +328,8 @@ async function deleteLoss(user, id) {
     reason: "Loss deleted (reverted)",
   });
 
+  io.emit("lossesUpdated");
+  
   return { success: true };
 }
 

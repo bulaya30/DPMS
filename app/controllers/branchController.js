@@ -1,5 +1,6 @@
 
 import db from "../db/db.js";
+import { io } from "../app.js";
 const col = 'branches';
 
 async function getBranches(user, field = null, value = null) {
@@ -99,6 +100,8 @@ async function addBranch(branch) {
 
   const docRef = await db.add(col, payload);
 
+  io.emit("branchesUpdated");
+
   return { id: docRef.id, ...payload };
 }
 
@@ -127,6 +130,9 @@ async function updateBranch(id, updates) {
   }
   delete updates.restore
   await db.update(col, id, updates);
+
+  io.emit("branchesUpdated");
+
   return { id, ...updates };
 }
 
@@ -154,6 +160,9 @@ async function deleteBranch(id) {
     active: false,
     deletedAt: new Date().toISOString(),
   });
+
+
+  io.emit("branchesUpdated");
 
   return {
     id,
@@ -184,10 +193,13 @@ async function isBranchInUse(branchId) {
 
 
 async function restoreBranch(id) {
-  await db.update(col, id, {
+  const branch = await db.update(col, id, {
     active: true,
     restoredAt: new Date().toISOString(),
   });
+
+  io.emit("branchesUpdated");
+  return { success: true}
 }
 
 

@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 import stockController from "./stockController.js";
 import vaccinScheduleController from "./vaccinScheduleController.js";
 import vaccinationController from "./vaccinationController.js";
@@ -265,7 +266,11 @@ async function addBird(user, bird) {
     reason: "New bird batch",
   });
 
-  return { id: docRef.id, created: true, ...data };
+  const result = { id: docRef.id, created: true, ...data };
+
+  io.emit("birdsUpdated");
+
+  return result;
 }
 
 
@@ -325,7 +330,12 @@ async function updateBird(user, id, updates, options = {}) {
     });
   }
 
-  return { success: true };
+  const result = { sucess: true };
+
+  // 🔥 notify all clients
+  io.emit("birdsUpdated");
+
+  return result;
 }
 
 
@@ -363,6 +373,8 @@ async function deleteBird(user, id) {
     itemId: existing.id,
   });
   
+  io.emit("birdsUpdated");
+
   return { success: true };
 }
 
@@ -389,6 +401,8 @@ async function restoreBird(user, id) {
     item: "bird",
     itemId: existing.id,
   });
+
+  io.emit("birdsUpdated");
 
   return { success: true };
 }

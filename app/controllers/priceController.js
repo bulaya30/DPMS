@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 
 const collectionName = "pricing_rules";
 
@@ -192,6 +193,8 @@ export async function addPricingRule(user, data) {
     }
   }
 
+  io.emit("priceRulesUpdated");
+
   return { id: docRef.id, ...payload };
 }
 /* ================= UPDATE PRICING RULE ================= */
@@ -287,6 +290,8 @@ export async function updatePricingRule(user, id, payload) {
     }
   }
 
+  io.emit("priceRulesUpdated");
+
   return updated;
 }
 
@@ -327,6 +332,8 @@ export async function deletePricingRule(user, id) {
   };
 
   await db.update(collectionName, id, updated);
+
+  io.emit("priceRulesUpdated");
 
   return true;
 }

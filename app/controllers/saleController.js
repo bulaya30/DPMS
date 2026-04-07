@@ -1,4 +1,5 @@
 import db from "../db/db.js";
+import { io } from "../app.js";
 import stockController from "./stockController.js";
 import birdController from "./birdController.js";
 import eggController from "./eggController.js";
@@ -113,13 +114,9 @@ async function addSale(user, data) {
     reason: "sale",
   });
 
-  return {
-    success: true,
-    sold: qtyToSell,
-    remainingStock: available - qtyToSell,
-    totalAdded: totalToAdd,
-    updated: Boolean(existingSale),
-  };
+  io.emit("salesUpdated");
+
+  return { success: true };
 }
 
 
@@ -258,6 +255,8 @@ async function updateSale({ itemId, itemType, date, newQuantity, newDate = null 
   const updatedSale = { quantity: Number(newQuantity), total: Number(newQuantity) * Number(sale.price), date: newDate ? new Date(newDate) : sale.date };
   await db.update('sales', sale.id, updatedSale);
 
+  io.emit("salesUpdated");
+
   return { id: sale.id, ...updatedSale };
 }
 
@@ -280,6 +279,9 @@ async function deleteSale(saleId) {
   else await eggController.updateEgg(item.id, item);
 
   await db.delete('sales', saleId);
+
+  io.emit("salesUpdated");
+  
   return { success: true };
 }
 
