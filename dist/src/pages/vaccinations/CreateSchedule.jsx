@@ -105,7 +105,6 @@ function AddSchedule({typeData = []}) {
       onSettled: () => {
         setTimeout(() => {
           setSuccess("");
-          setServerError("");
           setErrors({});
         }, 5000);
       }

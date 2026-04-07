@@ -246,9 +246,9 @@ function Vaccinations() {
 
         {/* ===== STATS ===== */}
         <div className="dashboard-kpis">
-          <KPIStatCard title="Completed" value={stats.completed} icon={<FaSyringe />} />
-          <KPIStatCard title="Due Today" value={stats.due} icon={<FaSyringe />} />
-          <KPIStatCard title="Overdue" value={stats.overdue} icon={<FaSyringe />} />
+          <KPIStatCard item="total" title="Completed" value={stats.completed} icon={<FaSyringe />} />
+          <KPIStatCard item="Local" title="Due Today" value={stats.due} icon={<FaSyringe />} />
+          <KPIStatCard item="Broilers" title="Overdue" value={stats.overdue} icon={<FaSyringe />} />
         </div>
 
         {/* ===== TABLE ===== */}
@@ -303,9 +303,9 @@ function Vaccinations() {
                     <td>
                       {r.status !== "COMPLETED" && (
                         <button
-                          className="table-btn norrechel-success-btn"
+                          className={`table-btn norrechel-success-btn${r.stats === 'OVERDUE' ? 'overdue' : ''}`}
                           disabled={r.status === "UPCOMING"}
-                          onClick={() => handleComplete(r)}
+                          onClick={() => completeVaccination(r)} 
                         >
                           {isSaving && <span className="spinner" />}
                           {isSaving ? "Completing..." : "Complete"}

@@ -264,9 +264,8 @@ async function stock(user, data) {
   if(!branchId || !typeId || !quantity) throw new Error("Missing required fields");
 
   const egg = await getEggs(user, 'typeId', typeId);
-  console.log(egg);
   const existing = egg[0];
-  if (!existing) throw new Error("Egg not found");
+  if (!existing) throw new Error("Egg not found in that Branch");
 
   await stockController.updateStock({
     user,

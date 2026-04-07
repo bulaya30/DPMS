@@ -181,7 +181,6 @@ function AddStock({ stockData, branchData, typeData, title, feedData, }) {
         name: tabConfig.showName ? formData.name : null
       },
     };
-    console.log(payload);
     mutate(payload, {
       onSuccess: () => {
         setSuccess(

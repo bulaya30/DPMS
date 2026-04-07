@@ -89,27 +89,27 @@ async function addFeed(user, data) {
    CONSUME FEED (STOCK → INVENTORY)
   ====================================================== */
   async function consumeFeed(user, data) {
-  if (!data.branchId || data.quantity === undefined)
-    throw new Error("Branch and quantity are required");
+    if (!data.branchId || data.quantity === undefined)
+      throw new Error("Branch and quantity are required");
 
-  if (!["admin", "manager"].includes(user.role))
-    throw new Error("Permission denied");
+    if(!user) throw new Error("No User logged in")
+    const feed = await fetchFeeds(user, 'name', data.name)
+    if(feed?.length === 0) throw new Error("No Feed found in that Branch")
+    const existing = feed[0];
+    const quantity = Number(data.quantity);
+    if (isNaN(quantity) || quantity <= 0)
+      throw new Error("Invalid quantity");
 
-  if (user.role === "manager" && data.branchId !== user.branchId)
-    throw new Error("Managers can only consume feed from their branch");
-
-  const quantity = Number(data.quantity);
-  if (isNaN(quantity) || quantity <= 0)
-    throw new Error("Invalid quantity");
-
-  await stockController.adjustStock({
-    user,
-    branchId: data.branchId,
-    item: "feed",
-    quantity: -quantity,
-    reason: "Feed consumed",
-  });
-
+    await stockController.adjustStock({
+      user,
+      branchId: existing.branchId,
+      item: "feed",
+      typeId: existing.typeId,
+      itemId: existing.id,
+      delta: quantity, 
+      field: "quantityConsumed", 
+      reason: "Feed consumed",
+    });
   return { success: true, consumed: quantity };
 }
 
@@ -138,7 +138,7 @@ async function updateFeed(user, id, updates) {
     unit: updates.unit
   };
 
-  // await db.update(collectionName, id, payload);
+  await db.update(collectionName, id, payload);
 
 
   if (quantityChanged) {
@@ -241,7 +241,7 @@ async function restoreFeed(user, id) {
 
   const { data, action, user, id } = payload;
 
-  if (!["admin", "manager"].includes(user.role))
+  if (action !== "consume" && !["admin", "manager"].includes(user.role))
     throw new Error("Only admin or manager can manage feeds");
 
   switch (action) {

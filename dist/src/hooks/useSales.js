@@ -39,8 +39,8 @@ export function useGetDailySales() {
 export function useProcessSale() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({data}) => {
-            return await processType(data);
+        mutationFn: async (data) => {
+            return await saleService.processSale(data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({queryKey: ["sales"]})

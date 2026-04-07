@@ -1096,8 +1096,13 @@ body.dark .dashboard-filters {
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  background: rgba(59, 246, 59, 0.329);
+  color: rgb(5, 105, 5);
 }
-
+.table-btn.overdue {
+  background: rgba(248, 24, 24, 0.068) !important;
+  color:  rgba(248, 24, 24, 0.596) !important;
+}
 /* Delete */
 .delete-btn {
   background: rgba(239, 68, 68, 0.12);
@@ -1604,8 +1609,8 @@ body.dark .dashboard-filters {
 }
 
 .stock-tabs button.active {
-  border-bottom: 3px solid #3498db;
-  color: #3498db;
+  border-bottom: 3px solid #063666;
+  color: #063666;
   font-weight: 600;
 }
 

@@ -279,28 +279,17 @@ export default function Dashboard() {
               <KPIStatCard
                 title={typeName}
                 value={qty}
-                icon={
-                  activeTab === "bird" ? (
-                    <Bird />
-                  ) : activeTab === "egg" ? (
-                    <Egg />
-                  ) : (
-                    <Wheat />
-                  )
-                }
+                icon={activeTab === "bird" ? <Bird /> : activeTab === "egg" ? <Egg /> : <Wheat />}
+                item={typeName}
               />
             </motion.div>
           ))}
 
         <KPIStatCard
-          title={`Total ${
-            activeTab === "bird"
-              ? "Birds"
-              : activeTab === "egg"
-              ? "Eggs"
-              : "Feed"
-          }`}
+          title={`Total ${activeTab === "bird" ? "Birds" : activeTab === "egg" ? "Eggs" : "Feed"}`}
           value={totalMain}
+          icon={activeTab === "bird" ? <Bird /> : activeTab === "egg" ? <Egg /> : <Wheat />}
+          item="total"
         />
 
         {activeTab === "bird" && totalVaccinationAlerts > 0 && (

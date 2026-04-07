@@ -150,7 +150,7 @@ async function addStock(data) {
    SNAPSHOT SYNC
    ============================ */
 
-   async function syncStock(data) {
+  async function syncStock(data) {
   const {
     user,
     branchId,
@@ -172,7 +172,7 @@ async function addStock(data) {
   if (item !== "feed" && !typeId) throw new Error("Type required");
   if (!itemId) throw new Error("itemId required");
   if (item !== "feed") await validateBranchAndType(branchId, typeId);
-  if (field && !["quantityLost"].includes(field)) throw new Error("Invalid stock meta field");
+  if (field && !["quantityLost", "quantityConsumed"].includes(field)) throw new Error("Invalid stock meta field");
   
   const stock = await findStock(user, branchId, typeId, item, itemId);
   
