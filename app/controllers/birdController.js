@@ -172,7 +172,6 @@ async function getBirds(user, field = null, value = null) {
     }
 
     const birds = await fetchBirds(user, field, value);
-    // console.log(birds); 
 
     // Admin : full access
     if (user.role === "admin") {

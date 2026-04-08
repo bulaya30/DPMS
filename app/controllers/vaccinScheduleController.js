@@ -70,55 +70,8 @@ function addDays(date, days) {
   d.setDate(d.getDate() + Number(days));
   return d;
 }
-/* ===================== CALCULATE BIRD AGE ===================== */
-async function calculateBirdAge(birdBatch) {
-  if (
-    birdBatch.age === undefined ||
-    !birdBatch.updatedAt ||
-    !birdBatch.typeId
-  )
-    return Number(birdBatch.age || 0);
 
-  const lastUpdate = toDate(birdBatch.updatedAt);
-  const today = new Date();
-
-  const lastUpdateDate = new Date(
-    lastUpdate.getFullYear(),
-    lastUpdate.getMonth(),
-    lastUpdate.getDate()
-  );
-
-  const todayDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-
-  if (todayDate <= lastUpdateDate) return Number(birdBatch.age);
-
-  const daysPassed = dateDiffInDays(lastUpdateDate, todayDate);
-
-  if (daysPassed <= 0) return Number(birdBatch.age);
-
-  const newAge = Number(birdBatch.age) + daysPassed;
-
-  /* ===== RESOLVE NEW PRICE ===== */
-  const pricing = await resolveBirdPriceCore({
-    typeId: birdBatch.typeId,
-    age: newAge,
-  });
-
-  /* ===== UPDATE BIRD BATCH ===== */
-  await db.update("birds", birdBatch.id, {
-    age: newAge,
-    price: pricing.price,
-    currency: pricing.currency,
-    updatedAt: new Date(),
-  });
-
-  return newAge;
-}
-
+/* ===================== GET SCHEDULES ===================== */
 async function getSchedules(field = "", value = "") {
   try {
     /* ---------- Get schedules ---------- */
@@ -256,7 +209,7 @@ async function updateSchedule(user, id, update) {
 async function getNextVaccination(birdBatch, template, history = []) {
   if (!birdBatch || !template || !Array.isArray(template.schedule)) return null;
 
-  const birdAge = await calculateBirdAge(birdBatch);
+  const birdAge = Number(birdBatch.age);
   if (isNaN(birdAge)) return null;
 
   const schedule = [...template.schedule].sort((a, b) => Number(a.ageInDays) - Number(b.ageInDays));
@@ -358,6 +311,5 @@ async function process(payload) {
 export default {
   getSchedules,
   getNextVaccination,
-  calculateBirdAge,
   process,
 };

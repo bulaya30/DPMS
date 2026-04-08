@@ -4,20 +4,20 @@ import useAuthStore from "../store/authStore";
 
 
 export function useGetPrices() {
-    const token = useAuthStore.getState().token;
-   return useQuery({
-        queryKey: ['prices', token],
-        queryFn: async () => {
-            return await priceService.getPrices();
-        },
-        enabled: !!token,
-        staleTime: 3 * 60 * 1000, // 3 minutes
-        gcTime: 5 * 60 * 1000,
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchOnReconnect: true,
-       
-   })
+  const token = useAuthStore((state) => state.token);
+
+  return useQuery({
+    queryKey: ['prices', token],
+    queryFn: async () => {
+      return await priceService.getPrices();
+    },
+    enabled: !!token,
+    staleTime: 0, 
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+  });
 }
 
 

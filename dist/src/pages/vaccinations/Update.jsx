@@ -140,6 +140,7 @@ function UpdateSchedule({ scheduleData = [], typeData = [] }) {
         setSuccess("Schedule updated successfully");
         setServerError("");
         setOriginalData(JSON.stringify(formData));
+        setFormData(prev => ({ ...prev, typeId: "", name: "", schedule: [] }));
       },
       onError: err => {
         setServerError(err.message || "Update failed");

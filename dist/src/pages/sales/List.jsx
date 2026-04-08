@@ -178,11 +178,6 @@ export default function SalesReport() {
 
       {/* ================= KPI ================= */}
       <div className="dashboard-kpis">
-        <KPIStatCard
-          title={`Total ${activeTab === "bird" ? "Bird" : "Egg"} Sales`}
-          value={stats.totalSold}
-          icon={activeTab === "bird" ? <Bird /> : <Egg />}
-        />
 
         {Object.entries(stats.salesByType).map(([type, qty]) => (
           <KPIStatCard
@@ -190,8 +185,15 @@ export default function SalesReport() {
             title={`${type} Sold`}
             value={qty}
             icon={activeTab === "bird" ? <Bird /> : <Egg />}
-          />
+            item={type}
+            />
         ))}
+        <KPIStatCard
+          title={`Total ${activeTab === "bird" ? "Bird" : "Egg"} Sales`}
+          value={stats.totalSold}
+          icon={activeTab === "bird" ? <Bird /> : <Egg />}
+          item={"total"}
+        />
       </div>
 
       {/* ================= CHART ================= */}

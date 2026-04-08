@@ -160,6 +160,12 @@ function UpdateRule({ priceRules = [], typeData = [] }) {
     mutate(payload, {
       onSuccess: () => {
         setSuccess("Rule updated successfully!");
+        setFormData(prev => ({
+          ...prev,
+          typeId: "",
+          item: "",
+          ranges: [{ minAge: "", maxAge: "", price: "", currency: "" }],
+        }))
       },
       onError: err => {
         setServerErrors(err.message);

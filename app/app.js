@@ -2,15 +2,17 @@ import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-
-import vaccinationReminder from './controllers/vaccinationReminder.js';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import webRoutes from './routes/web.js';
+import vaccinationReminder, { updateBirdAgesDaily } from './controllers/vaccinationReminder.js';
+
+updateBirdAgesDaily(); // run once on server start
 
 /* ================= INTERVAL TASK ================= */
-setInterval(vaccinationReminder, 20 * 60 * 1000); // every 20 Minutes
+setInterval(vaccinationReminder, 20 * 60 * 1000); // every 20 minutes
 
 /* ================= PATH SETUP ================= */
 const __filename = fileURLToPath(import.meta.url);
@@ -41,10 +43,10 @@ app.use((req, res) => {
 /* ================= SERVER + SOCKET.IO ================= */
 const PORT = process.env.PORT || 5000;
 
-// 👇 create HTTP server from Express app
+// create HTTP server from Express app
 const server = http.createServer(app);
 
-// create Socket.IO serve  r
+// create Socket.IO server
 const io = new Server(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
@@ -52,19 +54,23 @@ const io = new Server(server, {
   },
 });
 
-// handle socket connections
+/* ================= SOCKET CONNECTION ================= */
+let connectedUsers = 0;
+
 io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
+  connectedUsers++;
 
   socket.on('disconnect', () => {
-    console.log('❌ User disconnected:', socket.id);
+    connectedUsers--;
   });
+
+  
 });
 
-// 👇 export io so controllers can use it
+// export io for controllers to emit events
 export { io };
 
 /* ================= START SERVER ================= */
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

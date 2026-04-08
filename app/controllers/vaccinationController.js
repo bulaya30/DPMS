@@ -24,9 +24,8 @@ async function getVaccinations(field = "", value = "") {
     
     return vaccinations;
   } catch (error) {
-      console.error("Error fetching vaccinations:", error);
-      return [];
-    }
+    throw error;
+  }
 }
 
 /* ======================================================
@@ -128,7 +127,7 @@ async function buildVaccinationTimeline(birdBatch, template) {
         vaccine: item.vaccine,
         ageInDays: item.ageInDays,
         status: "OVERDUE",
-        dueDate // ← now we include the due date for overdue vaccines
+        dueDate 
       };
     }
 
@@ -149,7 +148,7 @@ function addDays(date, days) {
 }
 
 /* ======================================================
-   ALERTS
+  ALERTS
 ====================================================== */
 function getVaccinationAlert(nextVaccination) {
   if (!nextVaccination) return null;

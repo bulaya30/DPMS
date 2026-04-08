@@ -291,6 +291,7 @@ export async function updatePricingRule(user, id, payload) {
   }
 
   io.emit("priceRulesUpdated");
+  
 
   return updated;
 }

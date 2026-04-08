@@ -100,8 +100,7 @@ async function fetchLosses(user, field = "", value = "") {
     });
 
   } catch (err) {
-    console.error("Error fetching losses:", err);
-    return field === "id" ? null : [];
+    throw err;
   }
 }
 

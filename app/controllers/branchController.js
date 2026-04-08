@@ -4,9 +4,9 @@ import { io } from "../app.js";
 const col = 'branches';
 
 async function getBranches(user, field = null, value = null) {
-  // console.log(user)
+  
   if (user.role === 'admin') return await fetchBranches(field, value);
-  // console.log(user)
+  
   return await fetchBranches('id', user.branchId, {includeInactive: false});
 }
 
@@ -63,8 +63,8 @@ async function fetchBranches(
     return branchesWithUsage;
 
   } catch (error) {
-    console.error("Error fetching branches:", error);
-    return [];
+    
+    throw error;
   }
 }
 

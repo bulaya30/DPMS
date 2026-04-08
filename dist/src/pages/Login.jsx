@@ -75,7 +75,7 @@ function Login() {
     <div className={`dpms-auth-page ${darkMode ? "dark" : ""}`}>
         <div className="dpms-auth-card">
           <img src="/img/logo.png" alt="DPMS Logo" className="dpms-logo" />
-          <h2 className="dpms-title">Digital Poultry</h2>
+          <h2 className="dpms-title">Poultry</h2>
           <p className="dpms-subtitle">Management System</p>
           <div className="dpms-input-container">
             {serverError && <p className="error-text center">{serverError}</p>}

@@ -77,7 +77,6 @@ async function fetchEggs(user, field = "", value = "") {
     return eggs;
 
   } catch (err) {
-    console.error("Error fetching eggs:", err);
     throw err;
   }
 }

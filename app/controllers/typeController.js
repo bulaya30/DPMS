@@ -45,8 +45,8 @@ async function fetchTypes(
 
     return typesWithUsage;
   } catch (err) {
-    console.error("Error fetching types:", err);
-    throw new Error(err);
+    
+    throw err;
     
   }
 }

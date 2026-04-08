@@ -23,24 +23,22 @@ import "./styles/mobile.css";
 const queryClient = new QueryClient();
 
 function App() {
+  // 2️⃣ activate real-time updates for queries
+  useRealtimeUpdates()
   // 1️⃣ connect socket
   useEffect(() => {
     socket.on("connect", () => {
-      console.log("✅ Connected:", socket.id);
+      console.log("Connected to server");
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Disconnected");
-    });
+    socket.on("disconnect", () => {});
 
     return () => {
       socket.off("connect");
       socket.off("disconnect");
     };
   }, []);
-
-  // 2️⃣ activate real-time updates for queries
-  useRealtimeUpdates();
+;
 
   return (
     <QueryClientProvider client={queryClient}>

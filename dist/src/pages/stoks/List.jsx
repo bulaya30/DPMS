@@ -190,12 +190,14 @@ export default function StockStock() {
               title={`${type} Available`}
               value={qty}
               icon={<FaDove />}
+              item={type}
             />
           ))}
           <KPIStatCard
             title="Total Available Birds"
             value={totalAvailable}
             icon={<FaDove />}
+            item="total"
           />
         </div>
       )}

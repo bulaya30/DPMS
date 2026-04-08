@@ -41,7 +41,6 @@ async function fetchFeeds(user, field = "", value = "") {
     return feeds;
 
   } catch (error) {
-    console.error("Error fetching feeds:", error);
     throw error
   }
 }

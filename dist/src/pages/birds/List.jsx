@@ -63,6 +63,8 @@ export default function Birds() {
 
   }, [birds, branchFilter]);
 
+  console.log(birds)
+
   const exportToExcel = () => {
     const dataToExport = birds.map((row, index) => ({
       "#": index + 1,
