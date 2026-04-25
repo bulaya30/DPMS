@@ -114,7 +114,7 @@ function Login() {
 
           {serverError && <p className="error-text">{serverError}</p>}
 
-          <form onSubmit={handleSubmit(handleLogin)} className="auth-form">
+          <form onSubmit={handleSubmit(handleLogin)} className="auth-form" autoComplete="off">
             <div className="form-group">
               <label>Email</label>
               <div className="input-wrapper">
