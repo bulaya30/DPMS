@@ -28,7 +28,6 @@ function App() {
   // 1️⃣ connect socket
   useEffect(() => {
     socket.on("connect", () => {
-      console.log("Connected to server");
     });
 
     socket.on("disconnect", () => {});

@@ -1,128 +1,161 @@
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useContext, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { login } from "../api/LoginAuth";
 import { checkMail, checkPassword } from "../validations/validate";
 import { ThemeContext } from "../components/ThemeContext";
-import { Sun, Moon, Eye, EyeOff } from "lucide-react";
-import Header from "../components/Header"
-import useAuthStore from "../store/authStore";
+import Header from "../components/Header";
+// Assuming you have a generic icon component or use react-icons
+import { FaArrowRight, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FiCheckCircle, FiTrendingUp, FiCoffee } from "react-icons/fi"; // Example icons
 
 function Login() {
-  const navigate = useNavigate();
-  const { darkMode, toggleTheme } = useContext(ThemeContext);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ mode: "onBlur" });
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({});
+  const { darkMode } = useContext(ThemeContext);
+  const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const validateField = (name, value) => {
-    switch (name) {
-      case "email": return checkMail(value) ? "" : "Email address required";
-      case "password":
-              return checkPassword(value)
-                ? ""
-                : "Password must be at least 8 characters, 1 uppercase, 1 lowercase, 1 number";
-      default: return "";
+  useEffect(() => {
+    if (!shake) return;
+    const timer = setTimeout(() => setShake(false), 500);
+    return () => clearTimeout(timer);
+  }, [shake]);
+
+  const handleLogin = async (data) => {
+    if (isSaving) return;
+    try {
+      setIsSaving(true);
+      setServerError("");
+      const res = await login(data.email, data.password);
+      if (res.token) {
+        window.location.replace("/");
+      }
+    } catch (err) {
+      setServerError(err.message || "Login failed");
+      setShake(true);
+    } finally {
+      setTimeout(() => {
+        setIsSaving(false);
+        setShake(false);
+      }, 600);
     }
   };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
-  };
-
-  const handleLogin = async (e) => {
-  e.preventDefault();
-  if (isSaving) return;
-
-  const newErrors = {};
-  Object.keys(formData).forEach(key => {
-    const error = validateField(key, formData[key]);
-    if (error) newErrors[key] = error;
-  });
-
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors);
-    setShake(true);
-    return;
-  }
-
-  try {
-    setIsSaving(true);
-    setServerError("");
-    const res = await login(formData.email, formData.password);
-    if (res.token) {
-      window.location.replace("/");
-    }
-  } catch (err) {
-    setServerError(err.message || "Login failed");
-    setShake(true);
-  } finally {
-    setTimeout(() => {
-      setIsSaving(false);
-      setShake(false);
-    }, 600);
-  }
-};
 
   return (
     <>
-    <Header />
-    <div className={`dpms-auth-page ${darkMode ? "dark" : ""}`}>
-        <div className="dpms-auth-card">
-          <img src="/img/logo.png" alt="DPMS Logo" className="dpms-logo" />
-          <h2 className="dpms-title">Poultry</h2>
-          <p className="dpms-subtitle">Management System</p>
-          <div className="dpms-input-container">
-            {serverError && <p className="error-text center">{serverError}</p>}
+      <Header />
 
-            <form onSubmit={handleLogin} autoComplete="off">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`dpms-input ${errors.email ? "input-error" : ""} ${shake && errors.email ? "shake" : ""}`}
-              />
-              {errors.email && <small className="error-text">{errors.email}</small>}
+      {/* Full Screen Background Container */}
+      <div className={`auth-layout ${darkMode ? "dark" : ""}`}>
+        
+        {/* Background Image & Overlay */}
+        <div className="background-layer">
+          <div className="overlay-gradient"></div>
+          
+          {/* Left Side Content (Text & Features) */}
+          <div className="left-content">
+            <h1>Smart Farming.<br />Better Tomorrow.</h1>
+            <p>
+              Manage your poultry farm efficiently <br /> with real-time insights and control.
+            </p>
 
-              <div className="password-input-container">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`dpms-input ${errors.password ? "input-error" : ""} ${shake && errors.password ? "shake" : ""}`}
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
+            <div className="features">
+              <div className="feature-item">
+                <div className="icon-box">
+                  <FiCheckCircle size={24} />
+                </div>
+                <div>
+                  <strong>Healthy Birds</strong>
+                  <span>Better production</span>
+                </div>
               </div>
-              {errors.password && <small className="error-text">{errors.password}</small>}
+              <div className="feature-item">
+                <div className="icon-box">
+                  <FiTrendingUp size={24} />
+                </div>
+                <div>
+                  <strong>Real-time Tracking</strong>
+                  <span>Data-driven decisions</span>
+                </div>
+              </div>
+              <div className="feature-item">
+                <div className="icon-box">
+                  <FiCoffee size={24} /> {/* Or an egg icon */}
+                </div>
+                <div>
+                  <strong>Higher Productivity</strong>
+                  <span>Better farm management</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-              <button type="submit" disabled={isSaving} className={`dpms-login-btn save-btn ${isSaving ? "loading" : ""}`}>
-                {isSaving && <span className="spinner" />}
-                {isSaving ? "Logging in..." : "Sign In"}
-              </button>
-            </form>
-
-            <div className="dpms-links">
-              <span>Forgot Password?</span>
+        {/* Floating Login Card */}
+        <div className={`auth-card ${shake ? "shake" : ""}`}>
+          <div className="card-header">
+            {/* Logo Placeholder */}
+            <div className="logo-placeholder">
+              <img src="./img/logo.png" alt="Site Logo" />
             </div>
           </div>
 
+          <div className="welcome-section">
+            <h3>Welcome Back!</h3>
+            <p>Login to access your dashboard</p>
+          </div>
+
+          {serverError && <p className="error-text">{serverError}</p>}
+
+          <form onSubmit={handleSubmit(handleLogin)} className="auth-form">
+            <div className="form-group">
+              <label>Email</label>
+              <div className="input-wrapper">
+                <span className="input-icon">✉️</span>
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  {...register("email", { required: "Email is required", validate: (v) => checkMail(v) || "Invalid email" })}
+                />
+              </div>
+              {errors.email && <span className="field-error">{errors.email.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label>Password</label>
+              <div className="input-wrapper">
+                <span className="input-icon">🔒</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  {...register("password", { required: "Password is required", validate: (v) => checkPassword(v) || "Invalid" })}
+                />
+                <button type="button" className="toggle-password" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+              {errors.password && <span className="field-error">{errors.password.message}</span>}
+            </div>
+
+            <button type="submit" disabled={isSaving} className={`login-btn ${isSaving ? "loading" : ""}`}>
+              {isSaving ? "Signing in..." : "Sign In"} <FaArrowRight />
+            </button>
+          </form>
+
+          <div className="divider"><span>or</span></div>
+
+          <div className="card-footer">
+            <Link to="/forgot-password" className="forgot-link">Forgot Password?</Link>
+          </div>
         </div>
+
       </div>
     </>
   );
