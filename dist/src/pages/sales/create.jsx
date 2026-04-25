@@ -54,6 +54,7 @@ const Sales = () => {
     quantity: "",
     age: "",
     name: "",
+    client: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -144,6 +145,7 @@ const Sales = () => {
       age: "",
       name: "",
       price: 0,
+      client: "",
     });
     setErrors({});
     setSuccess("");
@@ -237,7 +239,7 @@ const Sales = () => {
 
     if (activeTab === 'sales' && formData.item === "bird" && !checkNumber(formData.age))
       newErrors.age = "Enter valid bird age (days)";
-
+    if(activeTab === 'sales' && !checkName(formData.client)) newErrors.client = "Client name required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -262,6 +264,7 @@ const Sales = () => {
       typeId: formData.typeId,
       age: formData.item === "bird" ? Number(formData.age) : null,
       quantity: Number(formData.quantity),
+      client: formData.client,
     } : {
       branchId: formData.branchId,
       name: formData.name,
@@ -376,141 +379,165 @@ const Sales = () => {
         {success && <p className="success-text">{success}</p>}
         <h2 className="page-title">New {activeTab}</h2>
         <motion.form onSubmit={handleSubmit} autoComplete="off">
-          <div className="norrechel-grouped-inputs">
-            <div>
-              <label className={`${errors.branchId ? "error-text" : ""}  ${shake && errors.branchId ? "shake" : ""}`}>Branch</label>
-              <select
-                name="branchId"
-                value={formData.branchId}
-                onChange={handleChange}
-                disabled={branches.length === 1}
-                className={`${errors.branchId ? "input-error" : ""} ${shake && errors.branchId ? "shake" : ""}`}
-              >
-                <option value=""></option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              {errors.branchId && <span className="error-text">{errors.branchId}</span>}
-            </div>
-            {activeTab === 'sales' && 
-              <div>
-                <label className={`${errors.typeId ? "error-text" : ""}  ${shake && errors.typeId ? "shake" : ""}`}>Type</label>
-                <select
-                  name="typeId"
-                  value={formData.typeId}
-                  onChange={handleChange}
-                  className={`${errors.typeId ? "input-error" : ""} ${shake && errors.typeId ? "shake" : ""}`}
-                >
-                  <option value=""></option>
-                  {types.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.typeId && <span className="error-text">{errors.typeId}</span>}
-              </div>
-            }
-          </div>
-
-          {activeTab === 'sales' && 
-            <div className="norrechel-grouped-inputs">
-              <div>
-                <label className={`${errors.item ? "error-text" : ""}  ${shake && errors.item ? "shake" : ""}`}>Item</label>
-                <select
-                  name="item"
-                  value={formData.item}
-                  onChange={handleChange}
-                  className={`${errors.item ? "input-error" : ""} ${shake && errors.item ? "shake" : ""}`}
-                >
-                  <option value=""></option>
-                  <option value="bird">Bird</option>
-                  <option value="egg">Egg</option>
-                </select>
-                {errors.item && <span className="error-text">{errors.item}</span>}
-              </div>
-              {formData.item === "bird" && (
+          {activeTab === 'sales' ? (
+            <>
+              <div className="norrechel-grouped-inputs">
                 <div>
-                  <label className={`${errors.age ? "error-text" : ""}  ${shake && errors.age ? "shake" : ""}`}>Age (Days)</label>
+                  <label className={`${errors.branchId ? "error-text" : ""}  ${shake && errors.branchId ? "shake" : ""}`}>Branch</label>
                   <select
-                    name="age"
-                    value={formData.age}
+                    name="branchId"
+                    value={formData.branchId}
                     onChange={handleChange}
-                    disabled={!existingAges.length}
-                    className={`${errors.age ? "input-error" : ""} ${shake && errors.age ? "shake" : ""}`}
+                    disabled={branches.length === 1}
+                    className={`${errors.branchId ? "input-error" : ""} ${shake && errors.branchId ? "shake" : ""}`}
                   >
                     <option value=""></option>
-                    {existingAges.map(a => (
-                      <option key={a} value={a}>
-                        {a} Days
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
                       </option>
                     ))}
                   </select>
-                  {errors.age && <span className="error-text">{errors.age}</span>}
+                  {errors.branchId && <span className="error-text">{errors.branchId}</span>}
                 </div>
-              )}
-            </div>
-          }
-          {activeTab === 'feed' && 
-            <div className="norrechel-grouped-inputs">
-              <div>
-                <label className={`${errors.name ? "error-text" : ""}  ${shake && errors.name ? "shake" : ""}`}>Name</label>
-                <select 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  disabled={feedNames.length === 0}
-                  className={`${errors.name ? "input-error" : ""} ${shake && errors.name ? "shake" : ""}`}
-                >
-                  <option value="">-- Select --</option>
-                  {feedNames.map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                {errors.name && <span className="error-text">{errors.name}</span>}
+                <div>
+                    <label className={`${errors.typeId ? "error-text" : ""}  ${shake && errors.typeId ? "shake" : ""}`}>Type</label>
+                    <select
+                      name="typeId"
+                      value={formData.typeId}
+                      onChange={handleChange}
+                      className={`${errors.typeId ? "input-error" : ""} ${shake && errors.typeId ? "shake" : ""}`}
+                    >
+                      <option value=""></option>
+                      {types.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.typeId && <span className="error-text">{errors.typeId}</span>}
+                </div>
+                <div>
+                  <label className={`${errors.item ? "error-text" : ""}  ${shake && errors.item ? "shake" : ""}`}>Item</label>
+                  <select
+                    name="item"
+                    value={formData.item}
+                    onChange={handleChange}
+                    className={`${errors.item ? "input-error" : ""} ${shake && errors.item ? "shake" : ""}`}
+                  >
+                    <option value=""></option>
+                    <option value="bird">Bird</option>
+                    <option value="egg">Egg</option>
+                  </select>
+                  {errors.item && <span className="error-text">{errors.item}</span>}
+                </div>
+                {formData.item === "bird" && (
+                  <div>
+                    <label className={`${errors.age ? "error-text" : ""}  ${shake && errors.age ? "shake" : ""}`}>Age (Days)</label>
+                    <select
+                      name="age"
+                      value={formData.age}
+                      onChange={handleChange}
+                      disabled={!existingAges.length}
+                      className={`${errors.age ? "input-error" : ""} ${shake && errors.age ? "shake" : ""}`}
+                    >
+                      <option value=""></option>
+                      {existingAges.map(a => (
+                        <option key={a} value={a}>
+                          {a} Days
+                        </option>
+                      ))}
+                    </select>
+                    {errors.age && <span className="error-text">{errors.age}</span>}
+                  </div>
+                )}
+                <div>
+                  <label className={`${errors.quantity ? "error-text" : ""}  ${shake && errors.quantity ? "shake" : ""}`}>Quantity</label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleChange}
+                    disabled={isQuantityDisabled}
+                    className={`${errors.quantity ? "input-error" : ""} ${shake && errors.quantity ? "shake" : ""}`}
+                  />
+                  {errors.quantity && <span className="error-text">{errors.quantity}</span>}
+                </div>
+                <div>
+                  <label>Price</label>
+                  <input type="number" value={formData.price} readOnly />
+                </div>
+                <div>
+                  <label className={`${errors.client ? "error-text" : ""}  ${shake && errors.client ? "shake" : ""}`}>Client</label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.client}
+                    onChange={handleChange}
+                    disabled={isQuantityDisabled}
+                    className={`${errors.client ? "input-error" : ""} ${shake && errors.client ? "shake" : ""}`}
+                  />
+                  {errors.client && <span className="error-text">{errors.client}</span>}
+                </div>
+                <div>
+                  <label>Total</label>
+                  <input type="number" value={total} readOnly />
+                </div>
+              </div>          
+            </>
+          ): (
+            <>
+              <div className="norrechel-grouped-inputs">
+                <div>
+                  <label className={`${errors.branchId ? "error-text" : ""}  ${shake && errors.branchId ? "shake" : ""}`}>Branch</label>
+                  <select
+                    name="branchId"
+                    value={formData.branchId}
+                    onChange={handleChange}
+                    disabled={branches.length === 1}
+                    className={`${errors.branchId ? "input-error" : ""} ${shake && errors.branchId ? "shake" : ""}`}
+                  >
+                    <option value=""></option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.branchId && <span className="error-text">{errors.branchId}</span>}
+                </div>
+                <div>
+                  <label className={`${errors.name ? "error-text" : ""}  ${shake && errors.name ? "shake" : ""}`}>Name</label>
+                  <select 
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    disabled={feedNames.length === 0}
+                    className={`${errors.name ? "input-error" : ""} ${shake && errors.name ? "shake" : ""}`}
+                  >
+                    <option value="">-- Select --</option>
+                    {feedNames.map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  {errors.name && <span className="error-text">{errors.name}</span>}
+                </div>
+                <div>
+                  <label className={`${errors.quantity ? "error-text" : ""}  ${shake && errors.quantity ? "shake" : ""}`}>Quantity</label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleChange}
+                    disabled={feedNames.length === 0}
+                    className={`${errors.quantity ? "input-error" : ""} ${shake && errors.quantity ? "shake" : ""}`}
+                  />
+                  {errors.quantity && <span className="error-text">{errors.quantity}</span>}
+                </div>
               </div>
-              <div>
-                <label className={`${errors.quantity ? "error-text" : ""}  ${shake && errors.quantity ? "shake" : ""}`}>Quantity</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  disabled={feedNames.length === 0}
-                  className={`${errors.quantity ? "input-error" : ""} ${shake && errors.quantity ? "shake" : ""}`}
-                />
-                {errors.quantity && <span className="error-text">{errors.quantity}</span>}
-              </div>
-            </div>
-          }
-          {activeTab === 'sales' && 
-            <div className="norrechel-grouped-inputs">
-              <div>
-                <label className={`${errors.quantity ? "error-text" : ""}  ${shake && errors.quantity ? "shake" : ""}`}>Quantity</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  disabled={isQuantityDisabled}
-                  className={`${errors.quantity ? "input-error" : ""} ${shake && errors.quantity ? "shake" : ""}`}
-                />
-                {errors.quantity && <span className="error-text">{errors.quantity}</span>}
-              </div>
-              <div>
-                <label>Price</label>
-                <input type="number" value={formData.price} readOnly />
-              </div>
-              <div>
-                <label>Total</label>
-                <input type="number" value={total} readOnly />
-              </div>
-            </div>
-            
-          }
+            </>
+          )}       
+          
           <button 
             type="submit" 
             disabled={feedPending || salePending}

@@ -14,7 +14,6 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 body{
   background: rgb(247, 247, 176);
@@ -85,6 +84,7 @@ input, select {
   height: 100vh;
   font-family: 'Inter', sans-serif; /* Or your font */
   padding: 5px;
+  overflow: hidden;
 }
 
 /* BACKGROUND LAYER */
@@ -211,7 +211,7 @@ input, select {
 }
 
 .logo-placeholder img {
-  width: 100px;
+  width: 150px;
   height: auto;
 }
 
