@@ -5,8 +5,8 @@ import { login } from "../api/LoginAuth";
 import { checkMail, checkPassword } from "../validations/validate";
 import { ThemeContext } from "../components/ThemeContext";
 import Header from "../components/Header";
-// Assuming you have a generic icon component or use react-icons
-import { FaArrowRight, FaEye, FaEyeSlash } from "react-icons/fa";
+import { AtSign } from "lucide-react";
+import { FaArrowRight, FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import { FiCheckCircle, FiTrendingUp, FiCoffee } from "react-icons/fi"; // Example icons
 
 function Login() {
@@ -118,7 +118,7 @@ function Login() {
             <div className="form-group">
               <label>Email</label>
               <div className="input-wrapper">
-                <span className="input-icon">✉️</span>
+                <span className="input-icon"><FaEnvelope /></span>
                 <input
                   type="email"
                   placeholder="Enter your email"
@@ -131,7 +131,7 @@ function Login() {
             <div className="form-group">
               <label>Password</label>
               <div className="input-wrapper">
-                <span className="input-icon">🔒</span>
+                <span className="input-icon"><FaLock /></span>
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"

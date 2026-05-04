@@ -7,10 +7,9 @@ import { useGetBirds } from "../../hooks/useBirds";
 import { useGetEggs } from "../../hooks/useEggs";
 import { useGetBranches } from "../../hooks/useBranches";
 import { useGetTypes } from "../../hooks/useTypes";
-import { useProcessSale } from "../../hooks/useSales";
-import { useGetInventories } from "../../hooks/useInventories";
+import { useGetDailySales, useProcessSale } from "../../hooks/useSales";
 import { useGetFeeds, useProcessFeed } from "../../hooks/useFeeds";
-
+import useAuthStore from "../../store/authStore";
 /* =================== UTILITY =================== */
 function normalizeToArray(input) {
   if (Array.isArray(input)) return input;
@@ -39,10 +38,13 @@ const Sales = () => {
   const { data: birds = [], isLoading: isLoadingBirds, error: errorBirds } = useGetBirds();
   const { data: eggs = [], isLoading: isLoadingEggs, error: errorEggs } = useGetEggs();
   const { data: feeds = [], isLoading: isLoadingFeeds, error:  errorFeeds} = useGetFeeds();
-  const { data: inventories = [], isLoading: isLoadingInvententories, error: errorInventories } = useGetInventories();
+  const { data: todaysales = [], isLoading: isLoadingInvententories, error: errorTodaySales } = useGetDailySales();
   const { mutate: saleMutate, isPending: salePending } = useProcessSale();
   const { mutate: feedMutate, isPending: feedPending } = useProcessFeed();
 
+    const user = useAuthStore((state) => state.user);
+    const canManage = user?.role === "admin" || user?.role === "manager";
+  
 
   /* ================= STATE ================= */
   const [activeTab, setActiveTab] = useState("sales");
@@ -69,31 +71,32 @@ const Sales = () => {
   );
 
   const sales = useMemo(() => {
-    return normalizeToArray(inventories).filter(inv =>
+    return normalizeToArray(todaysales).filter(inv =>
       (inv.item === "bird" || inv.item === "egg") &&
       normalizeDate(inv.date)?.toLocaleDateString() === todayString
     );
-  }, [inventories, todayString]);
+  }, [todaysales, todayString]);
 
   const consumedFeeds = useMemo(() => {
-    return normalizeToArray(inventories).filter(inv =>
+    return normalizeToArray(todaysales).filter(inv =>
       inv.item === "feed" &&
       normalizeDate(inv.date)?.toLocaleDateString() === todayString
     );
-  }, [inventories, todayString]);
+  }, [todaysales, todayString]);
 
-  // console.log(sales)
+
 
   const salesRows = useMemo(() => {
     return sales.map((s, index) => {
       let typeName = "";
+      let branchName = "";
       let age = "-";
       let price = 0
 
       if (s.item === "bird") {
         const bird = birds.find(b => String(b.id) === String(s.itemId));
-
-        typeName = bird?.typeName || "Unknown";
+        branchName = bird?.branchName || "-"
+        typeName = bird?.typeName || "-";
         age = bird?.age ? `${bird.age} days` : "-";
         price = bird?.price || 0
       }
@@ -107,17 +110,18 @@ const Sales = () => {
 
       return {
         id: s.id,
+        client: s.client,
         index: index + 1,
         item: s.item,
+        branchName,
         typeName,
         age,
-        quantity: s.quantitySold,
+        quantity: s.quantity,
         price,
-        total: s.quantitySold * price,
+        total: s.quantity * price,
       };
     });
   }, [sales, birds, eggs]);
-
   const feedsRows = useMemo(() => {
     return consumedFeeds.map((c, index) => {
       const feed = feeds.find(
@@ -285,6 +289,7 @@ const Sales = () => {
             typeId: "",
             age: "",
             quantity: "",
+            client: "",
             price: 0,
           })
           )
@@ -346,14 +351,14 @@ const Sales = () => {
     </div>
   );
 
-   if (errorBranches || errorTypes || errorBirds || errorEggs || errorFeeds || errorInventories) {
+   if (errorBranches || errorTypes || errorBirds || errorEggs || errorFeeds || errorTodaySales) {
     const errMsg =
       errorBranches?.message ||
       errorTypes?.message ||
       errorBirds?.message ||
       errorEggs?.message ||
       errorFeeds?.message ||
-      errorInventories?.message;
+      errorTodaySales?.message;
 
     return <div className="error-message">{errMsg}</div>;
   }
@@ -470,11 +475,10 @@ const Sales = () => {
                 <div>
                   <label className={`${errors.client ? "error-text" : ""}  ${shake && errors.client ? "shake" : ""}`}>Client</label>
                   <input
-                    type="number"
-                    name="quantity"
+                    type="text"
+                    name="client"
                     value={formData.client}
                     onChange={handleChange}
-                    disabled={isQuantityDisabled}
                     className={`${errors.client ? "input-error" : ""} ${shake && errors.client ? "shake" : ""}`}
                   />
                   {errors.client && <span className="error-text">{errors.client}</span>}
@@ -555,6 +559,8 @@ const Sales = () => {
           <thead>
             <tr>
               <th>#</th>
+              {activeTab === 'sales' && <th>Client</th>}
+              {canManage && <th>Branch</th>}
               {activeTab === "sales" && <th>Item</th>}
               {activeTab === "sales" && <th>Type</th>}
               {activeTab === "sales" && <th>Age</th>}
@@ -574,6 +580,8 @@ const Sales = () => {
                 salesRows.map(row => (
                   <tr key={row.id}>
                     <td>{row.index}</td>
+                    <td>{row.client}</td>
+                    {canManage && <td>{row.branchName}</td>}
                     <td>{row.item}</td>
                     <td>{row.typeName}</td>
                     <td>{row.age}</td>

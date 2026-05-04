@@ -177,10 +177,9 @@ function Vaccinations() {
 
     return { completed, due, overdue };
   }, [birds]);
-
+  
   /* ================= COMPLETE ================= */
-
-  const handleComplete = async row => {
+  const completeVaccination = async row  => {
     if (!row.nextVaccination) return;
     mutate({
       collection: "schedules",

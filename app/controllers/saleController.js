@@ -20,7 +20,7 @@ async function addSale(user, data) {
     throw new Error("Only birds and eggs can be sold");
   }
 
-  if (!data.typeId || !data.quantity || !data.branchId) {
+  if (!data.typeId || !data.quantity || !data.branchId || !data.client) {
     throw new Error("Missing required fields");
   }
 
@@ -71,6 +71,8 @@ async function addSale(user, data) {
       s.branchId === data.branchId &&
       s.typeId === data.typeId &&
       s.itemId === selectedItem.id &&
+      s.client === data?.client ?? "" &&
+      s.age === data?.age ?? "" &&
       s.uid === user.uid &&
       saleDate >= start &&
       saleDate < end
@@ -90,9 +92,11 @@ async function addSale(user, data) {
   } else {
     await db.add("sales", {
       uid: user.uid,
+      client: data?.client ?? "",
       branchId: data.branchId,
       typeId: data.typeId,
       item: data.item,
+      age: data?.age ?? "",
       itemId: selectedItem.id,
       quantity: qtyToSell,
       price,
@@ -123,8 +127,8 @@ async function addSale(user, data) {
 async function getSales(user, field = null, value = null) {
   if (user.role === 'admin') return await fetchSales(field, value);
   if(user.role === 'manager') return await fetchSales( 'branchId', user.branchId);
-  const sales = await fetchSales('branchId', user.branchId)
-  return sales.filter(sale => sale.uid === user.uid)
+  const sales = await fetchSales('branchId', user.branchId);
+  return sales.filter(sale => sale.uid === user.uid);
 }
 
 
@@ -140,62 +144,29 @@ async function fetchSales(field = null, value = null) {
     if (!Array.isArray(data)) data = [data];
     if (data.length === 0) return field === "id" ? null : [];
 
-    /* ---------- Collect IDs ---------- */
-    const branchIds = new Set();
-    const typeIds = new Set();
-    const itemIds = new Set();
+    /* ---------- Collect user IDs from sales ---------- */
+    const userIds = new Set();
 
     data.forEach(s => {
-      if (s.branchId) branchIds.add(s.branchId);
-      if (s.typeId) typeIds.add(s.typeId);
-      if (s.itemId) itemIds.add(s.itemId);
+      if (s.uid) userIds.add(s.uid);
     });
-
-    /* ---------- Fetch related data ---------- */
-    const [branches, types, birds, eggs] = await Promise.all([
-      branchIds.size ? db.get("branches") : [],
-      typeIds.size ? db.get("types") : [],
-      itemIds.size ? db.get("birds") : [],
-      itemIds.size ? db.get("eggs") : [],
-    ]);
-
-    /* ---------- Build lookup maps ---------- */
-    const branchMap = {};
-    branches.forEach(b => (branchMap[b.id] = b.name));
-
-    const typeMap = {};
-    types.forEach(t => (typeMap[t.id] = t.name));
-
-    const birdMap = {};
-    birds.forEach(b => {
-      birdMap[b.id] = {
-        name: b.name,
-        age: b.age,
-      };
+    /* ---------- Fetch users ---------- */
+    const users = userIds.size ? await db.get("users") : [];
+    
+    /* ---------- Build user lookup ---------- */
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u.uid] = u; // store full user object
     });
-
-    const eggMap = {};
-    eggs.forEach(e => {
-      eggMap[e.id] = {
-        name: e.name,
-      };
-    });
-
-    /* ---------- Map names + age ---------- */
-    const result = data.map(s => {
-      const isBird = s.item === "bird";
-      const itemData = isBird ? birdMap[s.itemId] : eggMap[s.itemId];
-
-      return {
-        ...s,
-        branchName: branchMap[s.branchId] || null,
-        typeName: s.typeId ? typeMap[s.typeId] || null : null,
-        itemName: itemData?.name || null,
-        age: isBird ? itemData?.age ?? null : null,
-      };
-    });
-
+    
+    /* ---------- Attach user to each sale ---------- */
+    const result = data.map(s => ({
+      ...s,
+      user: userMap[s.uid] || null, 
+    }));
+    
     return field === "id" ? result[0] : result;
+
   } catch (error) {
     throw new Error(`Error fetching sales: ${error}`);
   }

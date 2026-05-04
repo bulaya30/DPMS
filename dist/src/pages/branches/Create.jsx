@@ -1,17 +1,30 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { checkName } from "../../validations/validate";
 import { useProcessBranch } from "../../hooks/useBranches";
 import { FaSave } from "react-icons/fa";
 import FormField from "../../components/FormField";
 
-/* ================= LOCATION DATA ================= */
-const LOCATION_DATA = {
-  Kampala: ["Central", "Nakawa", "Makindye", "Rubaga", "Kawempe"],
-  Wakiso: ["Nansana", "Kira", "Entebbe", "Kajansi"],
-  Mukono: ["Mukono Town", "Seeta", "Nama"],
-  Jinja: ["Jinja City", "Bugembe"]
-};
+/* ================= NEW LOCATION DATA ================= */
+const LOCATION_DATA = [
+  { city: "Central Division", district: "Kampala" },
+  { city: "Nakawa Division", district: "Kampala" },
+  { city: "Makindye Division", district: "Kampala" },
+  { city: "Rubaga Division", district: "Kampala" },
+  { city: "Kawempe Division", district: "Kampala" },
+
+  { city: "Nansana", district: "Wakiso" },
+  { city: "Kira", district: "Wakiso" },
+  { city: "Entebbe", district: "Wakiso" },
+  { city: "Kajansi", district: "Wakiso" },
+
+  { city: "Mukono Town", district: "Mukono" },
+  { city: "Seeta", district: "Mukono" },
+  { city: "Nama", district: "Mukono" },
+
+  { city: "Jinja City", district: "Jinja" },
+  { city: "Bugembe", district: "Jinja" }
+];
 
 function AddBranch() {
   const { mutate, isPending: isSaving } = useProcessBranch();
@@ -26,7 +39,23 @@ function AddBranch() {
     mode: "onBlur",
   });
 
-  const district = watch("district");
+  /* ===== WATCH ===== */
+  const selectedDistrict = watch("district");
+
+  /* ================= DERIVED DATA ================= */
+
+  // Unique districts
+  const districts = useMemo(() => {
+    return [...new Set(LOCATION_DATA.map(loc => loc.district))];
+  }, []);
+
+  // Cities filtered by selected district
+  const cities = useMemo(() => {
+    if (!selectedDistrict) return [];
+    return LOCATION_DATA
+      .filter(loc => loc.district === selectedDistrict)
+      .map(loc => loc.city);
+  }, [selectedDistrict]);
 
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
@@ -80,7 +109,7 @@ function AddBranch() {
       <form
         onSubmit={handleSubmit(
           handleCreate,
-          () => setShake(true) 
+          () => setShake(true)
         )}
         autoComplete="off"
       >
@@ -88,26 +117,30 @@ function AddBranch() {
 
         {/* ===== DISTRICT & CITY ===== */}
         <div className="norrechel-grouped-inputs">
+
+          {/* DISTRICT FIRST */}
           <FormField
             name="district"
             label="District"
             register={register}
             rules={{ required: "District is required" }}
+            options={districts}
             error={errors.district}
-            options={Object.keys(LOCATION_DATA)}
             triggerShake={shake}
           />
 
+          {/* CITY DEPENDS ON DISTRICT */}
           <FormField
             name="city"
             label="City"
             register={register}
             rules={{ required: "City is required" }}
+            options={cities}
             error={errors.city}
-            options={district ? LOCATION_DATA[district] : []}
-            disabled={!district}
             triggerShake={shake}
+            disabled={!selectedDistrict}
           />
+
         </div>
 
         {/* ===== NAME ===== */}
