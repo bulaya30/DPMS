@@ -122,6 +122,7 @@ const Sales = () => {
       };
     });
   }, [sales, birds, eggs]);
+  
   const feedsRows = useMemo(() => {
     return consumedFeeds.map((c, index) => {
       const feed = feeds.find(
@@ -136,8 +137,6 @@ const Sales = () => {
       };
     });
   }, [consumedFeeds, feeds]);
-
-  // console.log(consumedFeeds)
 
   /* ================= AUTO-SET ITEM + RESET ================= */
   useEffect(() => {

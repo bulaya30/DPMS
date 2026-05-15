@@ -6,6 +6,9 @@ import { saveAs } from "file-saver";
 import { useGetBranches } from "../../hooks/useBranches";
 import { useGetSales } from "../../hooks/useSales";
 import { useGetTypes } from "../../hooks/useTypes";
+import { useGetBirds } from "../../hooks/useBirds";
+import { useGetEggs } from "../../hooks/useEggs";
+import { useGetFeeds } from "../../hooks/useFeeds";
 
 import KPIStatCard from "../../components/KPIStatCard";
 import SalesChart from "../../components/SalesChart";
@@ -32,6 +35,9 @@ export default function SalesReport() {
   const { data: branches = [], loading: loadingBranches, error: errorBranches } = useGetBranches();
   const { data: sales = [], loading: loadingSales, error: errorSales } = useGetSales();
   const { data: types = [], loading: loadingTypes, error: errorTypes } = useGetTypes();
+  const { data: birds = [], loading: loadingBirds, error: errorBirds } = useGetBirds();
+  const { data: eggs = [], loading: loadingEggs, error: errorEggs } = useGetEggs();
+  const { data: feeds = [], loading: loadingFeeds, error: errorFeeds } = useGetFeeds();
 
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === "admin";
@@ -60,6 +66,44 @@ export default function SalesReport() {
   }, [sales]);
 
   /* ================= FILTER ================= */
+  const salesRows = useMemo(() => {
+    return sales.map((s, index) => {
+      let typeName = "";
+      let branchName = "";
+      let typeId = "";
+      let age = "-";
+      let price = 0
+
+      if (s.item === "bird") {
+        const bird = birds.find(b => String(b.id) === String(s.itemId));
+        branchName = bird?.branchName || "-"
+        typeName = bird?.typeName || "-";
+        age = bird?.age ? `${bird.age} days` : "-";
+        price = bird?.price || 0
+      }
+
+      if (s.item === "egg") {
+        const egg = eggs.find(e => String(e.id) === String(s.itemId));
+
+        typeName = egg?.typeName || "Unknown";
+        price = egg?.price || 0
+      }
+
+      return {
+        id: s.id,
+        client: s.client,
+        index: index + 1,
+        item: s.item,
+        branchName,
+        typeName,
+        age,
+        quantity: s.quantity,
+        price,
+        total: s.quantity * price,
+      };
+    });
+  }, [sales, birds, eggs]);
+
   const filteredSales = useMemo(() => {
     const now = Date.now();
     const from =
@@ -70,7 +114,44 @@ export default function SalesReport() {
         : 0;
 
     return sales
-      .map(s => ({ ...s, date: normalizeDate(s.date) }))
+      .map((s, index) => {
+        let typeName = "";
+        let branchName = "";
+        let typeId = "";
+        let age = "-";
+        let price = 0
+
+        if (s.item === "bird") {
+          const bird = birds.find(b => String(b.id) === String(s.itemId));
+          branchName = bird?.branchName || "-"
+          typeName = bird?.typeName || "-";
+          typeId = bird?.typeId
+          age = bird?.age ? `${bird.age} days` : "-";
+          price = bird?.price || 0
+        }
+
+        if (s.item === "egg") {
+          const egg = eggs.find(e => String(e.id) === String(s.itemId));
+
+          typeName = egg?.typeName || "Unknown";
+          price = egg?.price || 0
+        }
+        return {
+          id: s.id,
+          branchId: s.branchId,
+          client: s.client,
+          index: index + 1,
+          item: s.item,
+          branchName,
+          typeName,
+          typeId,
+          age,
+          quantity: s.quantity,
+          price,
+          total: s.quantity * price,
+          user: s.user,
+        };
+      })
       .filter(
         s =>
           s.item === activeTab &&
@@ -81,7 +162,7 @@ export default function SalesReport() {
       )
       .sort((a, b) => b.date - a.date);
   }, [sales, activeTab, branchFilter, typeFilter, clientFilter, dateFilter]);
-
+console.log(filteredSales)
   /* ================= EXPORT ================= */
   const exportToExcel = () => {
     const dataToExport = filteredSales.map((sale, index) => ({
@@ -241,7 +322,7 @@ export default function SalesReport() {
               <th>Item</th>
               <th>Type</th>
               <th>Client</th>
-              <th>Qty</th>
+              <th>Quantity</th>
               <th>Price</th>
               <th>Total</th>
               {canManage && <th>Sold By</th>}
@@ -257,7 +338,7 @@ export default function SalesReport() {
                 <td>{s.branchName}</td>
                 <td>{s.item}</td>
                 <td>{s.typeName || "-"}</td>
-                <td>{s.clientName || "-"}</td>
+                <td>{s.client || "-"}</td>
                 <td>{s.quantity}</td>
                 <td>{Number(s.price).toLocaleString()}</td>
                 <td>{Number(s.total).toLocaleString()}</td>
