@@ -19,6 +19,7 @@ function AdminSetup() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [shake, setShake] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // ------------------ Validation ------------------
   const validateField = (name, value) => {
@@ -103,7 +104,7 @@ function AdminSetup() {
   return (
     <>
       <Header />
-      <div className={`dpms-auth-page ${darkMode ? "dark" : ""}`}>
+      <div className={`dpms-auth-page `}>
         {/* ===== FIXED TOP-RIGHT THEME TOGGLE ===== */}
         <div className="dpms-auth-card">
           <img src="/img/logo.png" alt="DPMS Logo" className="dpms-logo" />
