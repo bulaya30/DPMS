@@ -71,8 +71,8 @@ async function addSale(user, data) {
       s.branchId === data.branchId &&
       s.typeId === data.typeId &&
       s.itemId === selectedItem.id &&
-      s.client === data?.client ?? "" &&
-      s.age === data?.age ?? "" &&
+      s.client === data?.client || "" &&
+      s.age === data?.age || "" &&
       s.uid === user.uid &&
       saleDate >= start &&
       saleDate < end
